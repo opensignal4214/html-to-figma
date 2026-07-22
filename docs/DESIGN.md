@@ -6,8 +6,14 @@ Given arbitrary HTML (file or URL), produce a script that Figma can execute to
 rebuild the design as **native, editable Figma nodes** — with marked elements as
 `ComponentNode`s — not as a flattened image.
 
+**Supported input**: HTML the user drops in — a file or fragment they authored,
+plus its local assets. URL input works as a convenience, but live-site concerns
+(SPA hydration, auth, cookie banners, lazy loading, cross-origin iframes) are
+out of scope by design.
+
 Non-goals (for now): two-way sync, variants/interactive states, CSS Grid → Auto
-Layout, pseudo-elements, filters.
+Layout, pseudo-elements, filters. See [ROADMAP.md](ROADMAP.md) for what gets
+closed when.
 
 ## Architecture
 

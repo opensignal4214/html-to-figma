@@ -1,9 +1,15 @@
-# Roadmap — step-by-step to full support
+# Roadmap — step-by-step to 1:1 HTML → Figma components
 
-Ordered by user value: each phase ships independently, keeps `npm test` green,
-and follows the TDD workflow in [DESIGN.md](DESIGN.md) (failing unit test →
-implement → integration + preview check → update the schema/mapping tables in
-the same commit).
+**Scope**: the user drops HTML (a file or fragment they authored, plus its
+local assets) and we recreate it 1:1 as Figma components. Live-URL capture
+still works as a convenience, but SPAs, auth walls, cookie banners,
+lazy-loading and cross-origin iframes are explicitly **not** design targets —
+see non-goals.
+
+Ordered by contribution to 1:1 fidelity: each phase ships independently, keeps
+`npm test` green, and follows the TDD workflow in [DESIGN.md](DESIGN.md)
+(failing unit test → implement → integration + preview check → update the
+schema/mapping tables in the same commit).
 
 Effort: **S** ≈ hours, **M** ≈ a day, **L** ≈ multiple days.
 Status: `[ ]` planned · `[~]` in progress · `[x]` shipped.
@@ -18,155 +24,186 @@ three-layer local test harness (unit / mock-API / visual preview).
 
 ---
 
-## Phase 1 — Resizable components (Auto Layout fidelity)
+## Phase 1 — Paint & geometry correctness
 
-> Goal: resizing a generated component reflows like the browser would.
-> Today children are FIXED-size, so results look right but don't stretch.
+> Silent wrongness on ordinary CSS. These make output *incorrect*, not just
+> less editable — they come first.
 
-- [ ] **1.1 `flex-grow` / `align-self: stretch` mapping** (M)
-  `flex-grow > 0` → `layoutGrow = 1`; `align-items/align-self: stretch` (when
-  the child has no fixed cross size) → `layoutAlign: 'STRETCH'`. Extractor
-  records `grow`/`selfAlign` per child in the tree schema; builder applies them.
-  Tests: unit (new `mapFlexChild()` in `css-map.js`), preview scenario with a
-  stretching sidebar layout.
-- [ ] **1.2 Hug-contents sizing** (M)
-  When an element's size is content-driven (no explicit width/height, not
-  stretched), emit `primaryAxisSizingMode/counterAxisSizingMode: 'AUTO'` so
-  text edits in Figma resize the frame like the browser would. Heuristic:
-  compare used size against content box; fall back to FIXED when unsure.
-- [ ] **1.3 `min-width`/`max-width`/`min-height`/`max-height`** (S)
-  Map directly to Figma's `minWidth`/`maxWidth`/`minHeight`/`maxHeight`.
-- [ ] **1.4 `row-reverse` / `column-reverse`** (S)
-  Reverse child order in the tree at extraction time (visual order already
-  matches; this fixes Auto Layout insertion order + `itemReverseZIndex`).
-- [ ] **1.5 Percentage-width children** (S)
-  `width: 100%` inside Auto Layout → `layoutAlign: 'STRETCH'` /
-  `layoutGrow` rather than a fixed px copy.
+- [ ] **1.1 z-index / stacking-context paint order** (M)
+  Children are currently emitted in DOM order; browsers paint by stacking
+  rules. A `z-index: 50` badge earlier in the DOM ends up *behind* its
+  siblings in Figma. Compute effective paint order per stacking context in the
+  extractor and sort children before emitting. Unit-test the sorter on
+  cs-like fixtures.
+- [ ] **1.2 CSS transforms** (M)
+  `rotate()` / `scale()` / `translate()` currently capture only the axis-
+  aligned bounding box → rotated cards come out unrotated and wrongly sized.
+  Decompose the computed transform matrix; emit untransformed size + rotation
+  (Figma `rotation`/`relativeTransform`). Skew falls back to rasterize (2.2).
+- [ ] **1.3 List markers** (S)
+  Native `<ul>`/`<ol>` bullets and numbers are `::marker` pseudo-elements and
+  vanish today. Read `getComputedStyle(el, '::marker')` + synthesize a TEXT
+  child per item.
+- [ ] **1.4 `clip-path` and CSS masks** (M)
+  Angled section dividers, non-rect image crops → Figma vector masks for
+  polygon/inset/circle/ellipse clip paths; anything else → rasterize (2.2).
+- [ ] **1.5 Image crop precision** (S)
+  `object-position` / `background-position` offsets → CROP-mode image fill
+  with exact `imageTransform`, instead of today's center-crop FILL.
 
-**Exit criteria:** the pricing-card example can be resized ±30% in Figma and
-match a browser render at the same width; preview harness gains a
-"resize simulation" mode asserting reflow.
+**Exit criteria:** an example page with overlapping z-indexed elements, a
+rotated card, native list bullets, and an off-center `cover` image round-trips
+visually identical in the preview overlay.
 
-## Phase 2 — CSS Grid → Auto Layout
+## Phase 2 — The 1:1 guarantee: measure it, then never miss
 
-> Goal: common grids become editable Auto Layout instead of pixel-frozen frames.
+> "1:1" must be a number, not a claim — and there must be a safety net for
+> anything the mapper can't express.
 
-- [ ] **2.1 Single-axis grids** (M)
-  `grid-template-columns: 1fr` (one column) or single-row grids → VERTICAL /
-  HORIZONTAL Auto Layout with `gap`/padding, reusing the flex mapping.
-- [ ] **2.2 Uniform multi-column grids → wrapped Auto Layout** (M)
-  Equal-width columns (`repeat(n, 1fr)`, uniform `minmax`) → HORIZONTAL +
-  `layoutWrap: 'WRAP'` + `counterAxisSpacing = row-gap`, children sized to the
-  track width. Detection via computed `grid-template-columns` px list.
-- [ ] **2.3 Complex grids stay exact-position — loudly** (S)
-  Spans, named areas, auto-placement irregularities → keep today's absolute
-  fallback but log a CLI warning listing the elements, so users know which
-  parts won't reflow.
+- [ ] **2.1 Fidelity score in the preview harness** (M)
+  Pixel-diff the browser screenshot against the simulated-Figma render
+  (rasterized via the already-present Chromium), report % mismatch per
+  component, and add `--assert-fidelity <pct>` so CI fails on regressions.
+- [ ] **2.2 Rasterize fallback for unmappable nodes** (M)
+  Any element using a feature the mapper can't express (skew, exotic filters,
+  native form widgets — checkboxes, selects, sliders) gets an element
+  screenshot via Playwright embedded as an image fill, flagged in the layer
+  name (`[raster]`). This is the universal net: *every* HTML construct then
+  has a 1:1 representation, editable or not.
+- [ ] **2.3 True-Figma verification loop (optional, needs a token)** (M)
+  After running the plugin in Figma, export the created node as PNG via the
+  REST API (read-only export is supported) and pixel-diff against the browser
+  screenshot — closes the loop against the real Figma renderer instead of our
+  simulation.
 
-**Exit criteria:** a 3-column card grid example round-trips as wrapped Auto
-Layout; unit tests pin the `grid-template-columns` classifier.
+**Exit criteria:** `npm run preview` prints a fidelity % for the example and
+CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
 
-## Phase 3 — Rich text (single TextNode with style runs)
+## Phase 3 — Typography parity
 
-> Goal: `<p>Save <b>20%</b> today</p>` becomes ONE editable TextNode.
+> The hardest 1:1 frontier: Figma's text engine and font library are not
+> Chromium's.
 
-- [ ] **3.1 Inline-run flattening in the extractor** (L)
-  When an element's children are only text and inline-level elements with no
-  box styling, emit one TEXT node with `runs: [{start, end, style}]` instead of
-  sibling nodes. Schema addition documented in DESIGN.md.
-- [ ] **3.2 Range styling in the builder** (M)
-  Apply runs via `setRangeFontName` / `setRangeFontSize` / `setRangeFills` /
-  `setRangeTextDecoration` (loading every run's font first).
-- [ ] **3.3 Hyperlinks** (S)
-  `<a href>` runs → `setRangeHyperlink({ type: 'URL', value })`.
-- [ ] **3.4 Line breaks** (S)
-  `<br>` → `\n` within the run model (today `<br>` splits into stacked nodes).
+- [ ] **3.1 Font availability report** (S)
+  Detect every family/weight the document uses (including `@font-face`) and
+  state which will fall back to Inter, at extraction time.
+- [ ] **3.2 Per-line text mode (`--text-fidelity exact`)** (M)
+  Chromium already knows the rendered line boxes; optionally emit one TEXT
+  node per line so line breaks can never differ. Default stays editable
+  (wrapping) text; flag trades editability for pixel parity.
+- [ ] **3.3 Text-to-vector outlining (`--text-fidelity outline`)** (L)
+  For brand fonts Figma can't load: render each text run to SVG paths in the
+  browser and emit vectors — pixel-perfect, non-editable, per-node opt-in via
+  the rasterize-fallback flagging from 2.2.
+- [ ] **3.4 `text-overflow: ellipsis` → `textTruncation`** (S)
+- [ ] **3.5 `text-shadow` → DROP_SHADOW on TextNodes** (S)
+- [ ] **3.6 RTL / `direction` support** (M)
+  Mirror alignment mapping and Auto Layout ordering under `direction: rtl`.
 
-**Exit criteria:** mixed-style paragraph renders as one TextNode; mock harness
-extended with range-API rules (font-per-range loading order).
+**Exit criteria:** a page using a Google font + a fake brand font reaches
+≥99% fidelity score in `exact` mode and reports the fallback clearly.
 
-## Phase 4 — Component variants, instances, and breakpoints
+## Phase 4 — Visual completeness
 
-> Goal: output a component *library*, not just components.
-
-- [ ] **4.1 Repeated-subtree detection → component + instances** (L)
-  Hash normalized subtrees (structure + styles, ignoring text/images); repeats
-  become one ComponentNode plus `createInstance()` copies with text/image
-  overrides. Opt-in flag (`--dedupe`) first, default later.
-- [ ] **4.2 `data-figma-variant` → component sets** (M)
-  `data-figma-component="Button" data-figma-variant="State=Hover"` on sibling
-  elements → `figma.combineAsVariants()` into one component set.
-- [ ] **4.3 Responsive breakpoints as variants** (M)
-  `--widths 1440,768,375` renders the page once per width and emits each
-  marked component's variants into a set (`Breakpoint=Desktop/Tablet/Mobile`).
-
-**Exit criteria:** pricing example emits one Card component with two instances
-and a Breakpoint variant set; dedupe classifier fully unit-tested.
-
-## Phase 5 — Visual completeness
-
-- [ ] **5.1 Multiple background layers** (S) — Figma fills are already an
+- [ ] **4.1 Multiple background layers** (S) — Figma fills are already an
   array; emit every parsed layer (bottom-up) instead of the first.
-- [ ] **5.2 Radial gradients** (M) — `radial-gradient()` → GRADIENT_RADIAL
-  with transform from shape/size/position; conic → GRADIENT_ANGULAR.
-- [ ] **5.3 Pseudo-elements** (M) — `getComputedStyle(el, '::before'/'::after')`
-  with non-`none` content → synthesized child nodes (position from layout
-  delta; text content or box visuals).
-- [ ] **5.4 Per-side borders** (M) — unequal widths → individual
-  `strokeTopWeight`/`strokeRightWeight`/… instead of collapsing to the max.
-- [ ] **5.5 Filters** (S) — `filter: blur()` → LAYER_BLUR,
-  `backdrop-filter: blur()` → BACKGROUND_BLUR, `drop-shadow()` → DROP_SHADOW.
-- [ ] **5.6 `text-shadow`** (S) — → DROP_SHADOW effect on TextNodes.
-- [ ] **5.7 `background-repeat` tiling** (S) — → IMAGE fill `scaleMode: 'TILE'`
-  with `scalingFactor` from `background-size`.
-- [ ] **5.8 Blend modes** (S) — `mix-blend-mode` → node `blendMode`.
+- [ ] **4.2 Radial / conic gradients** (M) — → GRADIENT_RADIAL /
+  GRADIENT_ANGULAR with transforms from shape/size/position.
+- [ ] **4.3 Pseudo-elements `::before`/`::after`** (M) —
+  `getComputedStyle(el, '::before')` with non-`none` content → synthesized
+  child nodes (decorative shapes, icons, quotes are everywhere).
+- [ ] **4.4 Per-side borders** (M) — unequal widths → individual
+  `strokeTopWeight`/… instead of collapsing to the max side.
+- [ ] **4.5 Filters** (S) — `filter: blur()` → LAYER_BLUR,
+  `backdrop-filter: blur()` → BACKGROUND_BLUR, `drop-shadow()` → DROP_SHADOW;
+  other filter functions → rasterize fallback.
+- [ ] **4.6 `background-repeat` tiling** (S) — → IMAGE fill
+  `scaleMode: 'TILE'` with `scalingFactor` from `background-size`.
+- [ ] **4.7 Blend modes** (S) — `mix-blend-mode` → node `blendMode`.
+- [ ] **4.8 Overflow-scrolled containers** (S) — capture an inner scroller's
+  full `scrollHeight` content, clipped by the frame (`clipsContent` already
+  set), so nothing below the inner fold is lost.
 
-**Exit criteria:** each item lands with unit tests on its parser/mapper and an
-addition to the example page exercising it in the preview overlay.
+## Phase 5 — Editability: resizable components
 
-## Phase 6 — Assets & robustness
+> Not needed for 1:1 at capture size — needed for components that stay
+> correct when designers resize them.
 
-- [ ] **6.1 CORS-proof image capture** (M)
-  Capture image bytes via Playwright network interception (responses recorded
-  in Node) instead of in-page `fetch`, eliminating gray placeholders for
-  cross-origin images without CORS headers.
-- [ ] **6.2 Lazy-content settling** (S)
-  Auto-scroll the page and wait for `IntersectionObserver`-loaded images
-  before extraction; `--wait <ms|selector>` escape hatch.
-- [ ] **6.3 Same-origin `<iframe>` inlining** (M)
-  Walk same-origin iframe documents into the tree at the iframe's offset.
-- [ ] **6.4 Font report** (S)
-  CLI prints which font families/styles the document uses and which will fall
-  back to Inter (queryable in Figma via the plugin at run time; statically via
-  a bundled Google Fonts list).
-- [ ] **6.5 Oversized-image handling** (S)
-  Downscale images beyond Figma's 4096px limit in the browser via canvas
-  before inlining (today `createImage` may reject them).
+- [ ] **5.1 `flex-grow` / `align-self: stretch`** (M) → `layoutGrow = 1` /
+  `layoutAlign: 'STRETCH'` via a new `mapFlexChild()` in `css-map.js`.
+- [ ] **5.2 Hug-contents sizing** (M) — content-driven sizes →
+  `primaryAxisSizingMode/counterAxisSizingMode: 'AUTO'` where safe.
+- [ ] **5.3 min/max width/height** (S) → Figma min/max constraints.
+- [ ] **5.4 `row-reverse` / `column-reverse`** (S) — reverse child order at
+  extraction time.
+- [ ] **5.5 Percentage-width children** (S) — `width: 100%` → STRETCH rather
+  than a fixed px copy.
+- [ ] **5.6 CSS Grid → Auto Layout** (L) — single-axis grids map directly;
+  uniform `repeat(n, 1fr)` grids → wrapped Auto Layout; complex grids (spans,
+  areas) stay exact-position with a CLI warning listing the elements.
 
-## Phase 7 — Distribution & DX
+**Exit criteria:** the pricing example resized ±30% in Figma matches a browser
+render at that width.
 
-- [ ] **7.1 CI** (S) — GitHub Actions: `npm test` on push/PR (Playwright +
-  Chromium available via the official container image).
-- [ ] **7.2 npm publish** (S) — publish as a scoped package with `npx` usage;
-  `playwright` as a peer/optional story documented.
-- [ ] **7.3 Reusable companion plugin** (M)
-  A single installable plugin with a paste-box UI: paste `tree.json` (or the
-  script's tree payload) instead of re-importing a new dev plugin per page.
-  Removes the per-run manifest import entirely.
-- [ ] **7.4 Watch mode** (S) — `--watch` re-extracts on file change so
-  design/code iteration is one save + one plugin re-run.
-- [ ] **7.5 Config file** (S) — `htmltofigma.config.json` for widths,
-  selectors, component naming rules, font mappings.
+## Phase 6 — Rich text (single TextNode with style runs)
+
+- [ ] **6.1 Inline-run flattening** (L) — `<p>Save <b>20%</b></p>` → one TEXT
+  node with `runs: [{start, end, style}]` in the tree schema.
+- [ ] **6.2 Range styling in the builder** (M) — `setRangeFontName` /
+  `setRangeFills` / `setRangeTextDecoration`, loading every run's font first
+  (extend the mock harness with range-API ordering rules).
+- [ ] **6.3 Hyperlinks** (S) — `<a href>` runs → `setRangeHyperlink`.
+- [ ] **6.4 `<br>` → `\n`** (S) — within the run model.
+
+## Phase 7 — A component library, not just components
+
+- [ ] **7.1 Repeated-subtree detection → component + instances** (L)
+  Hash normalized subtrees (structure + styles, ignoring text/images); repeats
+  become one ComponentNode plus `createInstance()` copies with overrides.
+  Opt-in `--dedupe` first.
+- [ ] **7.2 `data-figma-variant` → component sets** (M)
+  Sibling elements marked `data-figma-component="Button"
+  data-figma-variant="State=Hover"` → `figma.combineAsVariants()`.
+- [ ] **7.3 Responsive breakpoints as variants** (M)
+  `--widths 1440,768,375` renders once per width; each marked component's
+  captures combine into a `Breakpoint=Desktop/Tablet/Mobile` set.
+
+## Phase 8 — Scale, payload, and input ergonomics
+
+- [ ] **8.1 Asset deduplication** (S) — hash inlined assets once, reference by
+  key (today a repeated badge image is embedded N times).
+- [ ] **8.2 HTML fragment / stdin input** (S) — accept snippets without a full
+  `<html>` document (auto-wrap) and `--stdin`, matching the "drop HTML" flow.
+- [ ] **8.3 Companion plugin with paste-box UI** (M) — one installable plugin
+  that accepts the tree payload, replacing per-page dev-plugin imports and
+  sidestepping script-size limits for image-heavy pages.
+- [ ] **8.4 Builder batching** (S) — yield periodically while creating
+  thousands of nodes so Figma stays responsive; size warnings from the CLI.
+- [ ] **8.5 Oversized-image downscaling** (S) — canvas-downscale beyond
+  Figma's 4096px `createImage` limit before inlining.
+
+## Phase 9 — Distribution & DX
+
+- [ ] **9.1 CI** (S) — GitHub Actions running `npm test` (+ fidelity assert
+  from 2.1) on push/PR.
+- [ ] **9.2 npm publish** (S) — scoped package, `npx` usage.
+- [ ] **9.3 Watch mode** (S) — `--watch` re-extracts on file change.
+- [ ] **9.4 Config file** (S) — widths, selectors, naming rules, font
+  mappings in `htmltofigma.config.json`.
 
 ---
 
 ## Explicit non-goals
 
-- **Two-way sync** (Figma → HTML): different product, different constraints.
-- **Pixel-perfect font metrics for fonts Figma doesn't have**: we guarantee
-  the fallback is deterministic (Inter, nearest weight), not metric-identical.
-- **JavaScript interactivity/animation capture**: we snapshot rendered states;
-  states can become variants (4.3) but behavior is out of scope.
-- **`space-around`/`space-evenly` exact semantics**: Figma has no equivalent;
-  the `SPACE_BETWEEN` approximation stays (positions remain exact because
-  extraction is geometry-based).
+- **Live-site capture as a product goal.** URL input remains a convenience,
+  but SPA hydration, auth walls, cookie banners, A/B variants, scroll-reveal
+  animation settling, and cross-origin iframes are out of scope — the
+  supported input is HTML the user drops in.
+- **Two-way sync** (Figma → HTML).
+- **JavaScript interactivity/animation capture** — states can be expressed as
+  variants (7.2/7.3), behavior cannot.
+- **Metric-identical text for fonts Figma can't load** *in editable form* —
+  the deterministic Inter fallback stays the editable default; `outline` mode
+  (3.3) is the pixel-perfect escape hatch.
+- **`space-around`/`space-evenly` exact Auto Layout semantics** — Figma has no
+  equivalent; positions remain exact because extraction is geometry-based.
