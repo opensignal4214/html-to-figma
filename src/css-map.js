@@ -271,6 +271,22 @@ export function mapBoxStyle(cs, rect) {
   return st;
 }
 
+/**
+ * Expand a single-line tight text rect (Range glyph bounds) to its CSS line
+ * box, centered vertically. Multi-line rects and unknown/tighter line-heights
+ * are returned unchanged — the tight bounds are already correct there, and
+ * expanding multi-line accurately needs per-line boxes we don't model yet.
+ */
+export function lineBoxRect(tight, lineHeightPx, lineCount) {
+  const out = { x: tight.x, y: tight.y, width: tight.width, height: tight.height };
+  if (!lineHeightPx || lineCount !== 1) return out;
+  const pad = (lineHeightPx - tight.height) / 2;
+  if (pad <= 0) return out;
+  out.y = round(tight.y - pad);
+  out.height = lineHeightPx;
+  return out;
+}
+
 /** Computed-style-like object → tree `text` style fields (sans characters). */
 export function mapTextStyle(cs) {
   const decorationLine = cs.textDecorationLine || '';

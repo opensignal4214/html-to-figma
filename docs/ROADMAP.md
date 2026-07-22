@@ -52,11 +52,13 @@ three-layer local test harness (unit / mock-API / visual preview).
 - [ ] **1.5 Image crop precision** (S)
   `object-position` / `background-position` offsets → CROP-mode image fill
   with exact `imageTransform`, instead of today's center-crop FILL.
-- [ ] **1.6 Text line-box capture** (S)
-  Range-based text rects are *tight* bounds — smaller than the CSS line box
-  when line-height is generous — so stacked text drifts a few px (found by a
-  skill-eval agent: ~8px on a testimonial card). Capture line-box-height
-  rects (pad tight bounds to the computed line height) instead.
+- [x] **1.6 Text line-box capture** (S)
+  `lineBoxRect()` expands a single-line tight rect to its CSS line box,
+  centered, fixing the vertical drift when line-height is generous (found by a
+  skill-eval agent: ~8px on a testimonial card). Extractor counts rendered
+  lines via `range.getClientRects()`; multi-line and AUTO line-height keep
+  tight bounds. Unit + e2e tested; pricing-card baseline unchanged
+  (line-height:normal there).
 
 **Exit criteria:** an example page with overlapping z-indexed elements, a
 rotated card, native list bullets, and an off-center `cover` image round-trips

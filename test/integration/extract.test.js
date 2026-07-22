@@ -30,3 +30,14 @@ test('z-index: children emitted in back-to-front paint order, not DOM order', as
   // DOM order is Back, Front, Behind; paint order must be Behind(z-1), Back(z1), Front(z5).
   assert.deepEqual(order, ['Behind', 'Back', 'Front']);
 });
+
+test('line-box: single-line text captured at full line-height, no drift', async () => {
+  const tree = await extractTree(fixture('line-box.html'), { width: 400, height: 300 });
+  const first = find(tree, (n) => n.type === 'TEXT' && n.text.characters === 'First line');
+  const second = find(tree, (n) => n.type === 'TEXT' && n.text.characters === 'Second line');
+  assert.ok(first && second, 'both text nodes found');
+  // Each row's line box is 40px tall; the text nodes must reflect that and sit
+  // exactly one line box apart, matching the flow the browser rendered.
+  assert.ok(Math.abs(first.rect.height - 40) < 1, `first height ${first.rect.height} ≈ 40`);
+  assert.ok(Math.abs(second.rect.y - (first.rect.y + 40)) < 1, `rows 40px apart (got ${second.rect.y - first.rect.y})`);
+});

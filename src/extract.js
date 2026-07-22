@@ -97,11 +97,17 @@ const EXTRACTOR = async ({ selector }) => {
     range.selectNodeContents(textNode);
     const rect = range.getBoundingClientRect();
     if (rect.width < 0.5 || rect.height < 0.5) return null;
+    const style = M.mapTextStyle(cs);
+    // Count rendered lines (unique fragment tops) so single-line text can be
+    // expanded to its full line box, fixing vertical drift with tall line-height.
+    const lineTops = new Set();
+    for (const r of range.getClientRects()) lineTops.add(Math.round(r.top));
+    const box = M.lineBoxRect(rr(rect), style.lineHeightPx, lineTops.size || 1);
     return {
       type: 'TEXT',
       name: characters.slice(0, 40),
-      rect: rr(rect),
-      text: { characters, ...M.mapTextStyle(cs) },
+      rect: box,
+      text: { characters, ...style },
     };
   };
 
