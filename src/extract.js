@@ -482,6 +482,26 @@ const EXTRACTOR = async ({ selector, textFidelity }) => {
   };
 };
 
+/**
+ * Keep only the outermost component mark on any path: a `data-figma-component`
+ * nested inside another marked element would create a component-inside-component
+ * (Figma rejects it; instances aren't built yet — ROADMAP Phase 7). Clears the
+ * inner marks and returns their names for a warning.
+ */
+export function pruneNestedComponents(tree) {
+  const dropped = [];
+  const walk = (node, insideComponent) => {
+    if (node.component && insideComponent) {
+      dropped.push(typeof node.component === 'string' ? node.component : node.name);
+      node.component = null;
+    }
+    const nowInside = insideComponent || !!node.component;
+    for (const c of node.children || []) walk(c, nowInside);
+  };
+  walk(tree, false);
+  return dropped;
+}
+
 /** Ensure at least one node is marked as a component. */
 export function markComponents(tree) {
   const hasComponent = (node) => {
@@ -514,6 +534,13 @@ export async function extractTree(input, opts = {}) {
     await page.addScriptTag({ content: cssMapBrowserSource() });
     const tree = await page.evaluate(EXTRACTOR, { selector: opts.selector || null, textFidelity: opts.textFidelity || 'editable' });
     await rasterizeFlagged(page, tree);
+    const droppedMarks = pruneNestedComponents(tree);
+    if (droppedMarks.length) {
+      console.warn(
+        `html-to-figma: dropped ${droppedMarks.length} nested component mark(s), kept the outermost ` +
+          `(instances not supported yet): ${droppedMarks.join(', ')}`,
+      );
+    }
     return markComponents(tree);
   } finally {
     await browser.close();

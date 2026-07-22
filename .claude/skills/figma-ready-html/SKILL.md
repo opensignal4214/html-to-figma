@@ -40,11 +40,12 @@ the inventory you chose in your summary so they can correct it cheaply.
 - Name like a design system: `"Card / Testimonial"`, `"Button / Primary"`,
   `"Nav / Item"`. Slashes group components in Figma's asset panel.
 - **Do not nest marked elements inside other marked elements.** Instance
-  generation isn't built yet (roadmap Phase 7), so nested marks try to create
-  a component inside a component, which Figma may reject. Pick one granularity
-  per file; if the user wants both a card *and* its inner button as
-  components, generate the button as a separate sibling section or a second
-  file rather than marking both in the same subtree.
+  generation isn't built yet (roadmap Phase 7), so a component-inside-component
+  can't be created. The tool now guards this — it keeps the **outermost** mark,
+  drops inner ones, and prints a warning — but that means your inner marks are
+  silently discarded, so still mark at **one** granularity per file. If the
+  user wants both a card *and* its inner button as components, generate the
+  button as a separate sibling section or a second file.
 - If nothing is marked, each top-level section of `<body>` becomes a component
   automatically — acceptable for quick captures, too coarse for real work.
   Prefer explicit marks.

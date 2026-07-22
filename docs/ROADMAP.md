@@ -313,11 +313,12 @@ sheet's components doesn't break the page recreation.
 - [ ] **10.1b `html-to-figma lint` command** (S)
   Promote the checker to a first-class CLI subcommand with per-element
   locations in warnings and a `--strict` mode for CI.
-- [ ] **10.2 Nested-mark handling at extraction** (S)
-  Until instances ship (Phase 7), nested `data-figma-component` marks emit an
-  extraction warning and keep only the outermost mark, instead of generating
-  component-inside-component output Figma may reject. The single most common
-  authoring mistake observed in evals.
+- [x] **10.2 Nested-mark handling at extraction** (S)
+  `pruneNestedComponents()` keeps only the outermost `data-figma-component` on
+  any path, clears inner marks, and `extractTree` warns with the dropped names —
+  instead of generating component-inside-component output Figma rejects. Unit-
+  tested; skill updated to note the guard. The most common authoring mistake in
+  evals is now handled gracefully.
 - [ ] **10.3 Skill/docs sync rule** (process)
   Any phase that changes supported CSS or marking semantics must update
   `.claude/skills/figma-ready-html/SKILL.md` (its "avoid" lists and marking

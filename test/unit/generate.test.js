@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { generateScript } from '../../src/generate.js';
-import { markComponents } from '../../src/extract.js';
+import { markComponents, pruneNestedComponents } from '../../src/extract.js';
 
 const tinyTree = {
   type: 'FRAME',
@@ -68,4 +68,35 @@ test('markComponents: falls back to the root when it has no frame children', () 
   tree.children = [];
   markComponents(tree);
   assert.equal(tree.component, 'Page');
+});
+
+test('pruneNestedComponents: keeps the outermost mark, drops inner ones', () => {
+  const tree = {
+    type: 'FRAME', name: 'root', component: null,
+    children: [
+      {
+        type: 'FRAME', name: 'card', component: 'Card',
+        children: [
+          { type: 'FRAME', name: 'btn', component: 'Button', children: [] }, // nested → dropped
+        ],
+      },
+    ],
+  };
+  const dropped = pruneNestedComponents(tree);
+  assert.deepEqual(dropped, ['Button']);
+  assert.equal(tree.children[0].component, 'Card'); // outermost kept
+  assert.equal(tree.children[0].children[0].component, null); // inner cleared
+});
+
+test('pruneNestedComponents: independent marks are all kept', () => {
+  const tree = {
+    type: 'FRAME', name: 'root', component: null,
+    children: [
+      { type: 'FRAME', name: 'a', component: 'A', children: [] },
+      { type: 'FRAME', name: 'b', component: 'B', children: [] },
+    ],
+  };
+  assert.deepEqual(pruneNestedComponents(tree), []);
+  assert.equal(tree.children[0].component, 'A');
+  assert.equal(tree.children[1].component, 'B');
 });
