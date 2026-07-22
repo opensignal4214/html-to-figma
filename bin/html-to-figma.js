@@ -2,6 +2,7 @@
 import path from 'node:path';
 import { extractTree } from '../src/extract.js';
 import { writeOutputs } from '../src/generate.js';
+import { collectFonts, fontReport } from '../src/fonts.js';
 
 const USAGE = `
 html-to-figma — turn HTML into a script that rebuilds it in Figma as components
@@ -83,6 +84,16 @@ async function run() {
   const components = listComponents(tree);
   console.log(`Extracted ${countNodes(tree)} nodes, ${components.length} component(s):`);
   for (const name of components) console.log(`  - ${name}`);
+
+  const { ok, fallback } = fontReport(collectFonts(tree));
+  if (ok.length || fallback.length) {
+    console.log('\nFonts used:');
+    for (const f of ok) console.log(`  ✓ ${f.family} (${f.weights.join(', ')})`);
+    for (const f of fallback) console.log(`  ⚠ ${f.family} (${f.weights.join(', ')}) — likely not in Figma; will fall back to Inter`);
+    if (fallback.length) {
+      console.log('  (font list is a heuristic — install the real fonts in Figma before running the plugin to be sure)');
+    }
+  }
 
   const written = writeOutputs(tree, opts.out, {
     source: opts.input,

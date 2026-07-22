@@ -119,9 +119,14 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
 > The hardest 1:1 frontier: Figma's text engine and font library are not
 > Chromium's.
 
-- [ ] **3.1 Font availability report** (S)
-  Detect every family/weight the document uses (including `@font-face`) and
-  state which will fall back to Inter, at extraction time.
+- [x] **3.1 Font availability report** (S)
+  `collectFonts()` + `fontReport()` (src/fonts.js) gather every primary
+  family/weight the tree uses and split them into likely-available vs
+  likely-fallback against a bundled heuristic list (src/figma-fonts.js). The
+  CLI prints ✓/⚠ per family. Print-only (tree unchanged). NOTE: the bundled
+  list is a heuristic — the authoritative check is
+  `figma.listAvailableFontsAsync()` inside Figma; `@font-face` detection is a
+  follow-up.
 - [ ] **3.2 Per-line text mode (`--text-fidelity exact`)** (M)
   Chromium already knows the rendered line boxes; optionally emit one TEXT
   node per line so line breaks can never differ. Default stays editable
