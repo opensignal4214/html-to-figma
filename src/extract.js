@@ -187,15 +187,30 @@ const EXTRACTOR = async ({ selector }) => {
       return node;
     }
 
+    const parentIsFlex = node.layout.mode !== 'NONE';
     for (const child of el.childNodes) {
       if (child.nodeType === Node.TEXT_NODE) {
         const textTree = textNodeToTree(child, cs);
-        if (textTree) node.children.push(textTree);
+        if (textTree) {
+          textTree._po = { position: 'static', zIndex: 'auto', flexItem: parentIsFlex };
+          node.children.push(textTree);
+        }
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const childTree = await walk(child);
-        if (childTree) node.children.push(childTree);
+        if (childTree) {
+          const childCs = getComputedStyle(child);
+          childTree._po = { position: childCs.position, zIndex: childCs.zIndex, flexItem: parentIsFlex };
+          node.children.push(childTree);
+        }
       }
     }
+
+    // Reorder children into Figma back-to-front z-order (DOM order ≠ paint order).
+    if (node.children.length > 1) {
+      const order = M.paintOrder(node.children.map((c) => c._po || { position: 'static', zIndex: 'auto' }));
+      node.children = order.map((i) => node.children[i]);
+    }
+    for (const c of node.children) delete c._po;
 
     // Collapse plain text wrappers (p, h1, span...) into a single TEXT node.
     const st = node.style;

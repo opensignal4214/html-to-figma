@@ -105,7 +105,7 @@ is fetched and replaced by `backgroundImage`.
 | `tag` | string | source HTML tag |
 | `layout` | see below | Auto Layout mapping |
 | `component` | string \| null | component name; truthy → `figma.createComponent()` |
-| `children` | node[] | document order (= Figma z-order, first is bottom) |
+| `children` | node[] | back-to-front paint order (first is bottom in Figma), computed from z-index/position by `paintOrder()` — not raw DOM order |
 
 `layout`: `{ mode: 'NONE'|'HORIZONTAL'|'VERTICAL', gap, rowGap, wrap,
 primaryAlign, counterAlign, paddingTop/Right/Bottom/Left }`.

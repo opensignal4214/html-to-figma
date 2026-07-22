@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  * { margin: 0; box-sizing: border-box; }
+  body { font-family: Inter, sans-serif; }
+  .stage { position: relative; width: 300px; height: 200px; }
+  .box { position: absolute; width: 120px; height: 120px; }
+  .back { left: 0; top: 0; background: #ef4444; z-index: 1; }
+  .front { left: 40px; top: 40px; background: #3b82f6; z-index: 5; }
+  .behind { left: 80px; top: 20px; background: #10b981; z-index: -1; }
+</style></head><body>
+  <!-- DOM order: back, front, behind. Paint order (back→front) must be:
+       behind (z:-1), back (z:1), front (z:5). -->
+  <div class="stage" data-figma-component="Stage">
+    <div class="box back">Back</div>
+    <div class="box front">Front</div>
+    <div class="box behind">Behind</div>
+  </div>
+</body></html>

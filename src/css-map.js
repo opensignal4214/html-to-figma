@@ -178,6 +178,39 @@ export function matchCssUrl(bgImage) {
   return m ? m[2] : null;
 }
 
+/**
+ * Reorder sibling children into back-to-front paint order (first = bottom in
+ * Figma). `items` are in DOM order; each is `{ position, zIndex, flexItem }`
+ * with computed-style values (`position` like 'static'/'absolute', `zIndex`
+ * 'auto' or a number string, `flexItem` true when the parent is flex — flex
+ * items honor z-index even while `position: static`). Returns the original
+ * indices reordered.
+ *
+ * Simplified CSS stacking model, back to front:
+ *   0. participants with negative z-index (by z asc)
+ *   1. normal-flow (non-participant) children, DOM order
+ *   2. participants with z-index auto/0, DOM order
+ *   3. participants with positive z-index (by z asc)
+ * A child "participates" when it is positioned, or is a flex item with an
+ * explicit z-index. Stable within a layer via the DOM index.
+ */
+export function paintOrder(items) {
+  const decorated = items.map((it, i) => {
+    const positioned = !!it.position && it.position !== 'static';
+    const hasZ = it.zIndex !== undefined && it.zIndex !== null && it.zIndex !== 'auto' && it.zIndex !== '';
+    const participates = positioned || (!!it.flexItem && hasZ);
+    const zi = participates && hasZ ? parseInt(it.zIndex, 10) || 0 : 0;
+    let layer;
+    if (participates && zi < 0) layer = 0;
+    else if (!participates) layer = 1;
+    else if (zi === 0) layer = 2;
+    else layer = 3;
+    return { i, layer, zi, dom: i };
+  });
+  decorated.sort((a, b) => a.layer - b.layer || a.zi - b.zi || a.dom - b.dom);
+  return decorated.map((d) => d.i);
+}
+
 /** Computed-style-like object → tree `layout` (Auto Layout mapping). */
 export function mapFlexLayout(cs) {
   if (!cs.display.includes('flex')) return { mode: 'NONE' };

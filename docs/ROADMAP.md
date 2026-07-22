@@ -29,12 +29,14 @@ three-layer local test harness (unit / mock-API / visual preview).
 > Silent wrongness on ordinary CSS. These make output *incorrect*, not just
 > less editable — they come first.
 
-- [ ] **1.1 z-index / stacking-context paint order** (M)
-  Children are currently emitted in DOM order; browsers paint by stacking
-  rules. A `z-index: 50` badge earlier in the DOM ends up *behind* its
-  siblings in Figma. Compute effective paint order per stacking context in the
-  extractor and sort children before emitting. Unit-test the sorter on
-  cs-like fixtures.
+- [x] **1.1 z-index / stacking-context paint order** (M)
+  `paintOrder()` in `css-map.js` reorders siblings back-to-front using the
+  simplified stacking model (negative-z → flow → z-auto positioned →
+  positive-z; flex items honor z-index). Extractor captures `position`/
+  `zIndex` per child and reorders before emitting. Unit-tested on cs-like
+  fixtures; e2e test on `test/fixtures/z-index.html`. Known limit: Figma
+  can't express paint-order ≠ layout-order, so reordering an *in-flow* flex
+  item with z-index also moves it in Auto Layout (rare).
 - [ ] **1.2 CSS transforms** (M)
   `rotate()` / `scale()` / `translate()` currently capture only the axis-
   aligned bounding box → rotated cards come out unrotated and wrongly sized.
