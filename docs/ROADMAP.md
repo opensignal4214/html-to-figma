@@ -155,18 +155,48 @@ render at that width.
 - [ ] **6.3 Hyperlinks** (S) — `<a href>` runs → `setRangeHyperlink`.
 - [ ] **6.4 `<br>` → `\n`** (S) — within the run model.
 
-## Phase 7 — A component library, not just components
+## Phase 7 — Atomic design & component library
 
-- [ ] **7.1 Repeated-subtree detection → component + instances** (L)
+> Goal: `--atomic` turns marked-up HTML into a design system, not a page —
+> atoms/molecules/organisms as a sticker-sheet library where higher levels
+> contain **instances** of lower ones, plus an optional page composed of
+> organism instances.
+
+- [ ] **7.1 Level marking attributes** (S)
+  `data-figma-atom` / `data-figma-molecule` / `data-figma-organism` (value =
+  component name) recorded as `level` in the tree schema.
+  `data-figma-component` keeps meaning organism-level.
+- [ ] **7.2 Bottom-up build with instance substitution** (L)
+  Build atoms first; while building higher levels, a node marked as an
+  already-built component emits `component.createInstance()` instead of new
+  frames. Repeated marks automatically become 1 component + N instances.
+- [ ] **7.3 Instance overrides** (M)
+  Different text on an instance → set on its text sublayers (path-matched
+  between source subtree and instance layers, fonts loaded first); size
+  differences → resize. Extend the mock harness with instance-API rules.
+- [ ] **7.4 Sticker-sheet library layout** (M)
+  Output page organized as labeled Auto Layout sections — Atoms / Molecules /
+  Organisms / Page — components in wrapped grids with name labels;
+  `--with-page` appends the full-page recreation built from instances.
+- [ ] **7.5 Structural divergence handling** (M)
+  Two same-named marks with different structure can't be instance+overrides:
+  with `data-figma-variant` → variant in a component set
+  (`figma.combineAsVariants()`); otherwise warn and emit a suffixed component
+  instead of a silently-wrong instance.
+- [ ] **7.6 Repeated-subtree detection (unmarked dedupe)** (L)
   Hash normalized subtrees (structure + styles, ignoring text/images); repeats
-  become one ComponentNode plus `createInstance()` copies with overrides.
-  Opt-in `--dedupe` first.
-- [ ] **7.2 `data-figma-variant` → component sets** (M)
-  Sibling elements marked `data-figma-component="Button"
-  data-figma-variant="State=Hover"` → `figma.combineAsVariants()`.
-- [ ] **7.3 Responsive breakpoints as variants** (M)
+  become component + instances even without markup. Opt-in `--dedupe`.
+- [ ] **7.7 Responsive breakpoints as variants** (M)
   `--widths 1440,768,375` renders once per width; each marked component's
   captures combine into a `Breakpoint=Desktop/Tablet/Mobile` set.
+- [ ] **7.8 Auto-atomic heuristics** (M, opt-in)
+  Infer atoms (buttons, inputs, badges, icons) without markup. Ships last:
+  taxonomy is a human decision; explicit attributes stay the primary path.
+
+**Exit criteria:** the pricing example with level attributes emits a
+sticker sheet where Pricing Card contains Badge/Button/Price *instances*, the
+two card buttons are one component with text overrides, and resizing the
+sheet's components doesn't break the page recreation.
 
 ## Phase 8 — Scale, payload, and input ergonomics
 
