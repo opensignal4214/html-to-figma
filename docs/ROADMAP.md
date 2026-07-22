@@ -56,9 +56,14 @@ three-layer local test harness (unit / mock-API / visual preview).
   measures width via canvas, and synthesizes a positioned TEXT child in the
   list gutter (or content edge for `inside`). Unit + e2e tested. Image markers
   (`list-style-image`) still skipped.
-- [ ] **1.4 `clip-path` and CSS masks** (M)
-  Angled section dividers, non-rect image crops → Figma vector masks for
-  polygon/inset/circle/ellipse clip paths; anything else → rasterize (2.2).
+- [x] **1.4 `clip-path`** (M) — `mapClipPath()` maps `circle()` on a
+  (near-)square element to a full corner radius (editable, exact); every other
+  clip (polygon/inset/ellipse/path/url, non-square circle) routes to the 2.2
+  rasterize fallback for a pixel-perfect result. Raster screenshots now use
+  `omitBackground` so clipped-away areas are transparent. Unit + e2e; clip-path
+  fixture renders 100% in the preview. Baseline unchanged. Full Figma vector
+  masks (`node.isMask`) deferred (unverifiable without Figma; raster already
+  gives 1:1). Plan: docs/plans/1.4-clip-path.md.
 - [x] **1.5 Image crop precision** (S)
   `objectFitCrop()` maps object-fit/object-position to a Figma scale mode +
   normalized crop rect: contain→FIT, centered cover→FILL (unchanged),

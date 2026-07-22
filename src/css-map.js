@@ -282,6 +282,27 @@ export function parseFilters(filter, backdropFilter) {
   return { effects, unsupported };
 }
 
+/**
+ * Map a computed `clip-path` to a Figma-expressible result:
+ *   - `null` for `none`
+ *   - `{ kind: 'radius', radius }` for `circle(...)` on a (near-)square element
+ *     (equivalent to border-radius 50%)
+ *   - `{ kind: 'raster' }` for everything else (polygon/inset/ellipse/path/url,
+ *     or a circle on a non-square box) — the caller rasterizes for a
+ *     pixel-perfect result rather than building a vector mask.
+ */
+export function mapClipPath(clipPath, rect) {
+  if (!clipPath || clipPath === 'none') return null;
+  if (clipPath.startsWith('circle(')) {
+    const square = Math.abs(rect.width - rect.height) <= 1;
+    if (square) {
+      const r = round(Math.min(rect.width, rect.height) / 2);
+      return { kind: 'radius', radius: { tl: r, tr: r, br: r, bl: r } };
+    }
+  }
+  return { kind: 'raster' };
+}
+
 /** '8px' → 8; '50%' → percentage of base; falsy → 0. */
 export function pxOrPercent(str, base) {
   if (!str) return 0;
@@ -576,6 +597,12 @@ export function mapBoxStyle(cs, rect) {
     bl: round(pxOrPercent(cs.borderBottomLeftRadius, base)),
   };
   if (radius.tl || radius.tr || radius.br || radius.bl) st.radius = radius;
+  // circle() clip on a square element → corner radius (border-radius 50%).
+  const clip = mapClipPath(cs.clipPath, rect);
+  if (clip && clip.kind === 'radius') {
+    st.radius = clip.radius;
+    st.clip = true;
+  }
   const opacity = parseFloat(cs.opacity);
   if (opacity < 1) st.opacity = round(opacity);
   const shadows = parseShadows(cs.boxShadow);

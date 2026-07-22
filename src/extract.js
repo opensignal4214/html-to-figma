@@ -244,7 +244,7 @@ const EXTRACTOR = async ({ selector, textFidelity }) => {
   // Features the tree/builder can't express faithfully → rasterize the element
   // (screenshot taken Node-side after this walk). Returns a short reason or null.
   let rasterCounter = 0;
-  const rasterReason = (el, cs) => {
+  const rasterReason = (el, cs, rect) => {
     const tag = el.tagName.toLowerCase();
     if (tag === 'input') {
       const t = (el.getAttribute('type') || 'text').toLowerCase();
@@ -262,6 +262,10 @@ const EXTRACTOR = async ({ selector, textFidelity }) => {
     if (tf && (Math.abs(tf.skewXDeg) > 0.5 || Math.abs(tf.scaleX - 1) > 0.01 || Math.abs(tf.scaleY - 1) > 0.01)) {
       return 'transform'; // skew / scale — pure rotation is handled elsewhere
     }
+    // Complex clip-path (polygon/inset/path/non-square circle) → rasterize for a
+    // pixel-perfect result. circle-on-square maps to corner radius (4.4/1.4).
+    const clip = M.mapClipPath(cs.clipPath, rect);
+    if (clip && clip.kind === 'raster') return 'clip-path';
     return null;
   };
 
@@ -279,7 +283,7 @@ const EXTRACTOR = async ({ selector, textFidelity }) => {
 
     // Unmappable feature → emit a raster placeholder; the element is screenshot
     // Node-side after this walk and the bytes are filled into image.base64.
-    const reason = rasterReason(el, cs);
+    const reason = rasterReason(el, cs, rect);
     if (reason) {
       const id = rasterCounter++;
       el.setAttribute('data-h2f-raster', String(id));
@@ -568,7 +572,9 @@ async function rasterizeFlagged(page, tree) {
   for (const node of pending) {
     try {
       const el = page.locator(`[data-h2f-raster="${node.rasterId}"]`);
-      const buf = await el.screenshot({ timeout: 5000 });
+      // omitBackground → clipped-away areas (clip-path) and control chrome are
+      // transparent, so the raster composites correctly over Figma parents.
+      const buf = await el.screenshot({ timeout: 5000, omitBackground: true });
       node.image = { base64: buf.toString('base64'), scaleMode: 'FILL' };
     } catch {
       // Screenshot failed (detached/offscreen) — leave as a gray placeholder.

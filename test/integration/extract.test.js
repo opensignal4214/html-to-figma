@@ -48,6 +48,19 @@ test('text-fidelity exact: wrapping text splits into one node per line', async (
   for (const l of lines) assert.ok(!/\n/.test(l.text.characters));
 });
 
+test('clip-path: circle-on-square → corner radius; polygon → raster', async () => {
+  const tree = await extractTree(fixture('clip-path.html'), { width: 400, height: 200 });
+  const avatar = find(tree, (n) => (n.name || '').includes('avatar'));
+  const divider = find(tree, (n) => (n.name || '').includes('divider'));
+  // circle(50%) on 64×64 → full corner radius 32, not rasterized.
+  assert.ok(avatar && avatar.style.radius, 'avatar has radius');
+  assert.equal(avatar.style.radius.tl, 32);
+  assert.ok(!/raster/.test(avatar.name || ''), 'avatar not rasterized');
+  // polygon → rasterized image with bytes.
+  assert.ok(divider && /^\[raster\]/.test(divider.name) && divider.name.includes('clip-path'));
+  assert.ok(divider.image && divider.image.base64.length > 50, 'divider raster has bytes');
+});
+
 test('inline HTML: extract from a raw fragment string (no file on disk)', async () => {
   const tree = await extractTree(null, {
     html: '<div data-figma-component="Snippet" style="font-family:Inter"><p>hello from stdin</p></div>',
