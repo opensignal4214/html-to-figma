@@ -95,6 +95,41 @@ const { tree, script } = await htmlToFigma('page.html', { width: 1280 });
 | `<input>` / `<textarea>` / `<select>` | Frame + text from value/placeholder |
 | `data-figma-component` | `ComponentNode` |
 
+## Testing without opening Figma
+
+Two harnesses let you validate generated scripts entirely locally:
+
+**1. Mock-API smoke test** — executes the generated script against a strict mock
+of the Figma Plugin API (it enforces real API rules, e.g. fonts must load before
+setting `characters`, `resize` rejects invalid sizes, font fallback chains are
+exercised). Catches crashes and ordering bugs:
+
+```bash
+npm test
+# or against any generated script:
+node test/mock-figma-run.js path/to/figma-script.js
+```
+
+**2. Visual preview** — runs the script against a recording mock, simulates
+Figma's Auto Layout positioning, renders the resulting node tree to SVG, and
+writes a self-contained HTML page showing the real browser render and the
+simulated Figma output side by side, plus an opacity overlay where any
+mismatch shows up as ghosting:
+
+```bash
+npm run preview            # writes out/preview.html — open in any browser
+# or for your own files:
+node test/preview.js out/figma-script.js your-page.html out/preview.html
+```
+
+Also useful: `out/tree.json` is the exact intermediate tree (what was extracted
+from the DOM), and `node --check out/figma-script.js` verifies syntax.
+
+The preview's Auto Layout / baseline simulation is a close approximation of
+Figma's engine, not the engine itself — treat pixel-perfect agreement there as
+strong evidence, and do a final eyeball check in Figma before shipping a
+component library.
+
 ## Current limitations
 
 - CSS Grid is captured by absolute positions (accurate, but not Auto Layout).

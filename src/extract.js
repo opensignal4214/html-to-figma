@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 
 const FALLBACK_CHROMIUM_PATHS = ['/opt/pw-browsers/chromium', process.env.CHROME_PATH].filter(Boolean);
 
-async function launchBrowser() {
+export async function launchBrowser() {
   const args = ['--allow-file-access-from-files'];
   try {
     return await chromium.launch({ args });

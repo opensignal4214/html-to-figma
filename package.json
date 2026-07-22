@@ -9,7 +9,8 @@
   "main": "src/index.js",
   "scripts": {
     "example": "node bin/html-to-figma.js examples/pricing-card.html -o out",
-    "test": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/mock-figma-run.js out/figma-script.js && node test/mock-figma-run.js out/figma-plugin/code.js"
+    "test": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/mock-figma-run.js out/figma-script.js && node test/mock-figma-run.js out/figma-plugin/code.js",
+    "preview": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/preview.js out/figma-script.js examples/pricing-card.html out/preview.html"
   },
   "engines": {
     "node": ">=18"
