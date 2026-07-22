@@ -307,8 +307,11 @@ sheet's components doesn't break the page recreation.
 
 ## Phase 9 — Distribution & DX
 
-- [ ] **9.1 CI** (S) — GitHub Actions running `npm test` (+ fidelity assert
-  from 2.1) on push/PR.
+- [x] **9.1 CI** (S) — `.github/workflows/ci.yml` runs the full suite (unit +
+  integration incl. the 95% fidelity gate + e2e) on every push/PR: Node 24,
+  `npm ci`, `playwright install --with-deps chromium`, `npm test`. Fails on any
+  regression including a changed pricing-card baseline. First real run is on
+  GitHub. Plan: docs/plans/9.1-ci.md.
 - [ ] **9.2 npm publish** (S) — scoped package, `npx` usage.
 - [ ] **9.3 Watch mode** (S) — `--watch` re-extracts on file change.
 - [ ] **9.4 Config file** (S) — widths, selectors, naming rules, font

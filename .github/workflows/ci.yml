@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The e2e and fidelity harnesses launch real headless Chromium.
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      # Full suite: unit + integration (mock-Figma run + 95% fidelity gate) + e2e.
+      # Fails on any regression, including a changed pricing-card baseline.
+      - name: Run tests
+        run: npm test
