@@ -189,7 +189,13 @@ render at that width.
 - [ ] **7.7 Responsive breakpoints as variants** (M)
   `--widths 1440,768,375` renders once per width; each marked component's
   captures combine into a `Breakpoint=Desktop/Tablet/Mobile` set.
-- [ ] **7.8 Auto-atomic heuristics** (M, opt-in)
+- [ ] **7.8 Component manifest validation** (M)
+  The designer's agreed breakdown captured as a spec (`figma.components.json`:
+  names, levels, expected counts) that the CLI validates extraction against —
+  missing declared components, unexpected nesting, or unmarked repeats fail
+  loudly with a diff. Turns "did the HTML follow the designer's taxonomy"
+  into a machine check instead of trust in the generator.
+- [ ] **7.9 Auto-atomic heuristics** (M, opt-in)
   Infer atoms (buttons, inputs, badges, icons) without markup. Ships last:
   taxonomy is a human decision; explicit attributes stay the primary path.
 
