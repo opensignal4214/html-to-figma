@@ -104,11 +104,15 @@ visually identical in the preview overlay.
   element via Playwright and inlines the bytes. Every HTML construct now has a
   1:1 representation, editable or not. Unit-covered via e2e (5-control
   fixture); pricing-card baseline unchanged.
-- [ ] **2.3 True-Figma verification loop (optional, needs a token)** (M)
-  After running the plugin in Figma, export the created node as PNG via the
-  REST API (read-only export is supported) and pixel-diff against the browser
-  screenshot — closes the loop against the real Figma renderer instead of our
-  simulation.
+- [~] **2.3 True-Figma verification loop — harness built, awaiting token** (M)
+  `test/figma-verify.js`: given a read-only `FIGMA_TOKEN` + file key, finds the
+  exported node by name (`findNodeByName`), exports it as PNG via
+  `GET /v1/images`, and pixel-diffs against the browser render — a real-Figma
+  fidelity number to confirm/refute the flagged matrices. Pure parts
+  (node-finder, URL builder) unit-tested; REST + diff run once the token is set.
+  **One unavoidable manual step** (REST API is read-only, no headless plugin
+  runner): paste `figma-script.js` into Scripter and Run once per batch;
+  everything else is automated. Plan: docs/plans/2.3-figma-verify.md.
 
 - [x] **2.4 Preview: size raw SVG embeds** (S)
   `sizeSvg()` (test/preview-util.js) forces an embedded SVG's root to w×h,
