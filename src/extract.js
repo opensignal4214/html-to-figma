@@ -413,6 +413,10 @@ const EXTRACTOR = async ({ selector, textFidelity }) => {
       node.children.unshift(marker);
     }
 
+    // row-reverse / column-reverse: flow order is reversed vs the DOM, so
+    // reverse children before z-order sorting to match Auto Layout order.
+    if (node.layout && node.layout.reverse && node.children.length > 1) node.children.reverse();
+
     // Reorder children into Figma back-to-front z-order (DOM order ≠ paint order).
     if (node.children.length > 1) {
       const order = M.paintOrder(node.children.map((c) => c._po || { position: 'static', zIndex: 'auto' }));

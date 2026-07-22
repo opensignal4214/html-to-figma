@@ -203,8 +203,10 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
 - [ ] **5.2 Hug-contents sizing** (M) — content-driven sizes →
   `primaryAxisSizingMode/counterAxisSizingMode: 'AUTO'` where safe.
 - [ ] **5.3 min/max width/height** (S) → Figma min/max constraints.
-- [ ] **5.4 `row-reverse` / `column-reverse`** (S) — reverse child order at
-  extraction time.
+- [x] **5.4 `row-reverse` / `column-reverse`** (S) — `mapFlexLayout` sets
+  `reverse:true` for `*-reverse`; walker reverses flow children at extraction so
+  Auto Layout order matches visual order. Unit + e2e; baseline unchanged.
+  (No Figma needed; verified via child order + x-positions.)
 - [ ] **5.5 Percentage-width children** (S) — `width: 100%` → STRETCH rather
   than a fixed px copy.
 - [ ] **5.6 CSS Grid → Auto Layout** (L) — single-axis grids map directly;

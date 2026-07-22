@@ -196,6 +196,12 @@ test('mapFlexLayout: inline-flex and column-reverse still map', () => {
   assert.equal(l.mode, 'VERTICAL');
 });
 
+test('mapFlexLayout: reverse flag set only for *-reverse directions', () => {
+  assert.equal(mapFlexLayout(flexBase).reverse, undefined);
+  assert.equal(mapFlexLayout({ ...flexBase, flexDirection: 'row-reverse' }).reverse, true);
+  assert.equal(mapFlexLayout({ ...flexBase, flexDirection: 'column-reverse' }).reverse, true);
+});
+
 test('mapFlexLayout: justify/align keywords map to Figma axis alignment', () => {
   const l = mapFlexLayout({ ...flexBase, justifyContent: 'space-between', alignItems: 'center' });
   assert.equal(l.primaryAlign, 'SPACE_BETWEEN');

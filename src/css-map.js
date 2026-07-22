@@ -475,7 +475,7 @@ export function mapFlexLayout(cs) {
   const rowGap = parseFloat(cs.rowGap) || 0;
   let counterAlign = ALIGN_COUNTER[cs.alignItems] || 'MIN';
   if (mode === 'VERTICAL' && counterAlign === 'BASELINE') counterAlign = 'MIN';
-  return {
+  const layout = {
     mode,
     gap: mode === 'HORIZONTAL' ? colGap : rowGap,
     rowGap,
@@ -487,6 +487,10 @@ export function mapFlexLayout(cs) {
     paddingBottom: parseFloat(cs.paddingBottom) || 0,
     paddingLeft: parseFloat(cs.paddingLeft) || 0,
   };
+  // Reverse directions lay children out back-to-front; the walker reverses the
+  // flow children so Auto Layout order matches the visual order.
+  if (cs.flexDirection.endsWith('-reverse')) layout.reverse = true;
+  return layout;
 }
 
 // Figma image scale mode for a background layer from its size/repeat values.

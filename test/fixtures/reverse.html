@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  * { margin: 0; box-sizing: border-box; }
+  body { font-family: Inter, sans-serif; }
+  .bar { display: flex; flex-direction: row-reverse; gap: 8px; }
+  .item { width: 40px; height: 40px; background: #4f46e5; color: #fff; display: flex; align-items: center; justify-content: center; }
+</style></head><body>
+  <!-- DOM order A, B, C; row-reverse renders C, B, A left-to-right. -->
+  <div class="bar" data-figma-component="Bar">
+    <div class="item">A</div>
+    <div class="item">B</div>
+    <div class="item">C</div>
+  </div>
+</body></html>

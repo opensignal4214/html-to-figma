@@ -48,6 +48,17 @@ test('text-fidelity exact: wrapping text splits into one node per line', async (
   for (const l of lines) assert.ok(!/\n/.test(l.text.characters));
 });
 
+test('flex row-reverse: children emitted in reversed (visual) order', async () => {
+  const tree = await extractTree(fixture('reverse.html'), { width: 400, height: 200 });
+  const bar = find(tree, (n) => n.component === 'Bar');
+  const labels = bar.children.map(firstText);
+  // Auto Layout order must match the left-to-right visual order: C, B, A.
+  assert.deepEqual(labels, ['C', 'B', 'A']);
+  // And their x positions are left-to-right in that order.
+  assert.ok(bar.children[0].rect.x < bar.children[1].rect.x);
+  assert.ok(bar.children[1].rect.x < bar.children[2].rect.x);
+});
+
 test('multiple backgrounds: gradient overlay over image → ordered bgLayers with bytes', async () => {
   const tree = await extractTree(fixture('multi-bg.html'), { width: 400, height: 300 });
   const hero = find(tree, (n) => n.component === 'Hero');
