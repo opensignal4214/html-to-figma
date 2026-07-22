@@ -277,8 +277,12 @@ sheet's components doesn't break the page recreation.
 
 ## Phase 8 — Scale, payload, and input ergonomics
 
-- [ ] **8.1 Asset deduplication** (S) — hash inlined assets once, reference by
-  key (today a repeated badge image is embedded N times).
+- [x] **8.1 Asset deduplication** (S) — `dedupeAssets()` (generate.js) collects
+  every `base64` blob in the tree into a shared `__ASSETS__` array and rewrites
+  `base64`→`asset` index; the runtime resolves via `__assetB64()`. A repeated
+  image is embedded once instead of N times (verified: 3 identical imgs → 1
+  blob, 3 refs). Generation-only — `tree.json` and the baseline are byte-
+  identical. Unit + through-mock tested.
 - [ ] **8.2 HTML fragment / stdin input** (S) — accept snippets without a full
   `<html>` document (auto-wrap) and `--stdin`, matching the "drop HTML" flow.
 - [ ] **8.3 Companion plugin with paste-box UI** (M) — one installable plugin

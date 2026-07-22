@@ -16,6 +16,40 @@ function header(source) {
 }
 
 /**
+ * Deduplicate inlined image bytes for the embedded script: every `base64`
+ * string anywhere in the tree becomes an index into a shared assets array
+ * (`node.base64` → `node.asset`). Repeated images (a badge used N times) are
+ * then embedded once instead of N times. Pure — clones the tree, leaving the
+ * caller's original (and the debug tree.json) untouched.
+ * @returns {{ tree: object, assets: string[] }}
+ */
+export function dedupeAssets(tree) {
+  const clone = structuredClone(tree);
+  const assets = [];
+  const index = new Map();
+  const visit = (obj) => {
+    if (!obj || typeof obj !== 'object') return;
+    if (typeof obj.base64 === 'string') {
+      let idx = index.get(obj.base64);
+      if (idx === undefined) {
+        idx = assets.length;
+        assets.push(obj.base64);
+        index.set(obj.base64, idx);
+      }
+      obj.asset = idx;
+      delete obj.base64;
+    }
+    for (const key of Object.keys(obj)) {
+      const v = obj[key];
+      if (Array.isArray(v)) v.forEach(visit);
+      else if (v && typeof v === 'object') visit(v);
+    }
+  };
+  visit(clone);
+  return { tree: clone, assets };
+}
+
+/**
  * Produce a self-contained Figma Plugin API script from an extracted tree.
  * @param {object} tree - tree from extractTree()
  * @param {object} [opts]
@@ -25,9 +59,11 @@ function header(source) {
 export function generateScript(tree, opts = {}) {
   const runtime = fs.readFileSync(RUNTIME_PATH, 'utf8');
   const close = opts.closePlugin ? 'true' : 'false';
+  const { tree: deduped, assets } = dedupeAssets(tree);
   return [
     header(opts.source || 'html'),
-    `const __TREE__ = ${JSON.stringify(tree)};`,
+    `const __ASSETS__ = ${JSON.stringify(assets)};`,
+    `const __TREE__ = ${JSON.stringify(deduped)};`,
     '',
     runtime,
     '',

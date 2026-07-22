@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { generateScript } from '../../src/generate.js';
+import { generateScript, dedupeAssets } from '../../src/generate.js';
 import { markComponents, pruneNestedComponents } from '../../src/extract.js';
 
 const tinyTree = {
@@ -23,6 +23,33 @@ const tinyTree = {
     },
   ],
 };
+
+test('dedupeAssets: shared image bytes collapse to one asset entry', () => {
+  const blob = 'QUJDQUJDQUJD';
+  const tree = {
+    type: 'FRAME', name: 'r', children: [
+      { type: 'IMAGE', name: 'a', image: { base64: blob, scaleMode: 'FILL' } },
+      { type: 'IMAGE', name: 'b', image: { base64: blob, scaleMode: 'FILL' } },
+      { type: 'FRAME', name: 'c', style: { backgroundImage: { base64: 'T1RIRVI=', scaleMode: 'FILL' } }, children: [] },
+    ],
+  };
+  const { tree: out, assets } = dedupeAssets(tree);
+  assert.equal(assets.length, 2, 'two unique blobs');
+  // both IMAGE nodes reference the same asset index, base64 removed
+  assert.equal(out.children[0].image.base64, undefined);
+  assert.equal(out.children[0].image.asset, out.children[1].image.asset);
+  assert.equal(assets[out.children[0].image.asset], blob);
+  // the other blob is a distinct index
+  assert.notEqual(out.children[2].style.backgroundImage.asset, out.children[0].image.asset);
+  // original tree untouched (still has base64)
+  assert.equal(tree.children[0].image.base64, blob);
+});
+
+test('dedupeAssets: no images → empty assets, tree unchanged shape', () => {
+  const tree = { type: 'FRAME', name: 'r', children: [{ type: 'TEXT', text: { characters: 'hi' } }] };
+  const { assets } = dedupeAssets(tree);
+  assert.equal(assets.length, 0);
+});
 
 test('generateScript: output is syntactically valid JS', () => {
   const script = generateScript(tinyTree, { source: 'test.html' });

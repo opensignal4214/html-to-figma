@@ -28,6 +28,15 @@ function __base64ToBytes(b64) {
   return out.subarray(0, o);
 }
 
+// Resolve inlined image bytes, whether stored directly (base64) or deduped into
+// the shared __ASSETS__ table (asset index). See generate.js dedupeAssets().
+function __assetB64(o) {
+  if (!o) return null;
+  if (o.base64) return o.base64;
+  if (o.asset !== undefined && typeof __ASSETS__ !== 'undefined') return __ASSETS__[o.asset];
+  return null;
+}
+
 function __solid(c) {
   return { type: 'SOLID', color: { r: c.r, g: c.g, b: c.b }, opacity: c.a === undefined ? 1 : c.a };
 }
@@ -152,7 +161,7 @@ function __gradientPaint(g) {
 }
 
 function __imagePaint(layer) {
-  var img = figma.createImage(__base64ToBytes(layer.base64));
+  var img = figma.createImage(__base64ToBytes(__assetB64(layer)));
   var fill = { type: 'IMAGE', imageHash: img.hash, scaleMode: layer.scaleMode || 'FILL' };
   if (fill.scaleMode === 'TILE') fill.scalingFactor = layer.scalingFactor || 1;
   return fill;
@@ -168,7 +177,7 @@ function __frameFills(st) {
       var layer = st.bgLayers[li];
       try {
         if (layer.kind === 'gradient') fills.push(__gradientPaint(layer.gradient));
-        else if (layer.kind === 'image' && layer.base64) fills.push(__imagePaint(layer));
+        else if (layer.kind === 'image' && __assetB64(layer)) fills.push(__imagePaint(layer));
       } catch (e) {
         console.warn('html-to-figma: background layer skipped: ' + e.message);
       }
@@ -176,7 +185,7 @@ function __frameFills(st) {
     return fills;
   }
   if (st.gradient) fills.push(__gradientPaint(st.gradient));
-  if (st.backgroundImage && st.backgroundImage.base64) {
+  if (st.backgroundImage && __assetB64(st.backgroundImage)) {
     try {
       fills.push(__imagePaint(st.backgroundImage));
     } catch (e) {
@@ -236,9 +245,9 @@ function __createImage(n) {
   rect.name = n.name || 'image';
   rect.resize(Math.max(n.rect.width, 0.01), Math.max(n.rect.height, 0.01));
   var applied = false;
-  if (n.image && n.image.base64) {
+  if (n.image && __assetB64(n.image)) {
     try {
-      var img = figma.createImage(__base64ToBytes(n.image.base64));
+      var img = figma.createImage(__base64ToBytes(__assetB64(n.image)));
       var fill = { type: 'IMAGE', imageHash: img.hash, scaleMode: n.image.scaleMode || 'FILL' };
       // CROP mode honors object-position: imageTransform maps container UV to
       // the visible normalized sub-rectangle of the image.

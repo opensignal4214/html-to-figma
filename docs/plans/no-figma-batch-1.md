@@ -1,6 +1,6 @@
 # Plan — no-Figma batch 1 (5.4, 10.2, 8.1)
 
-Status: **approved (auto-proceed)** · Effort: 3× S–M
+Status: **shipped** (all three: 5.4, 10.2, 8.1) · Effort: 3× S–M
 
 Three independent items that are fully verifiable without live Figma (tree /
 mock / preview), each shipped as its own commit under this plan.
