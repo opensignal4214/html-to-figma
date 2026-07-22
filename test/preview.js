@@ -175,6 +175,15 @@ function gradientDef(id, fill) {
   return `<linearGradient id="${id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">${stops}</linearGradient>`;
 }
 
+function radialGradientDef(id, fill) {
+  // Preview renders a centered radial (objectBoundingBox space); the Figma
+  // gradientTransform is best-effort and verified separately.
+  const stops = fill.gradientStops
+    .map((s) => `<stop offset="${s.position}" stop-color="${rgba(s.color)}"/>`)
+    .join('');
+  return `<radialGradient id="${id}" cx="0.5" cy="0.5" r="0.5">${stops}</radialGradient>`;
+}
+
 function shadowFilterCss(n) {
   const shadows = (n.effects || []).filter((e) => e.type === 'DROP_SHADOW' && e.visible !== false);
   if (!shadows.length) return '';
@@ -192,9 +201,9 @@ function renderBox(n) {
     if (f.visible === false) continue;
     if (f.type === 'SOLID') {
       out += `<rect width="${n.width}" height="${n.height}" rx="${rx}" fill="${rgba(f.color, f.opacity ?? 1)}"${out ? '' : shadow}/>`;
-    } else if (f.type === 'GRADIENT_LINEAR') {
+    } else if (f.type === 'GRADIENT_LINEAR' || f.type === 'GRADIENT_RADIAL') {
       const id = `g${defId++}`;
-      defs.push(gradientDef(id, f));
+      defs.push(f.type === 'GRADIENT_RADIAL' ? radialGradientDef(id, f) : gradientDef(id, f));
       out += `<rect width="${n.width}" height="${n.height}" rx="${rx}" fill="url(#${id})"${out ? '' : shadow}/>`;
     } else if (f.type === 'IMAGE' && images[f.imageHash] && f.scaleMode === 'TILE') {
       // Tile at natural size — a foreignObject div lets the browser repeat it.

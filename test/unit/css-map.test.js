@@ -5,6 +5,7 @@ import {
   splitTopLevel,
   parseShadows,
   parseLinearGradient,
+  parseRadialGradient,
   pxOrPercent,
   matchCssUrl,
   mapFlexLayout,
@@ -124,6 +125,26 @@ test('parseLinearGradient: fewer than 2 color stops → null', () => {
 test('parseLinearGradient: not a linear gradient → null', () => {
   assert.equal(parseLinearGradient('radial-gradient(rgb(0, 0, 0), rgb(255, 255, 255))'), null);
   assert.equal(parseLinearGradient('none'), null);
+});
+
+test('parseRadialGradient: bare radial → RADIAL type with stops', () => {
+  const g = parseRadialGradient('radial-gradient(rgb(255, 0, 0), rgb(0, 0, 255))');
+  assert.equal(g.type, 'RADIAL');
+  assert.equal(g.stops.length, 2);
+  assert.deepEqual(g.stops[0].color, { r: 1, g: 0, b: 0, a: 1 });
+  assert.deepEqual(g.stops.map((s) => s.position), [0, 1]);
+  assert.ok(Array.isArray(g.transform));
+});
+
+test('parseRadialGradient: shape/position descriptor is skipped', () => {
+  const g = parseRadialGradient('radial-gradient(circle at 30% 30%, rgb(0,0,0) 0%, rgb(255,255,255) 100%)');
+  assert.equal(g.stops.length, 2); // descriptor not counted as a stop
+  assert.deepEqual(g.stops.map((s) => s.position), [0, 1]);
+});
+
+test('parseRadialGradient: not radial → null', () => {
+  assert.equal(parseRadialGradient('linear-gradient(rgb(0,0,0), rgb(255,255,255))'), null);
+  assert.equal(parseRadialGradient('none'), null);
 });
 
 // ---------------------------------------------------------------- helpers

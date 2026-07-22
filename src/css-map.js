@@ -83,6 +83,64 @@ export function parseShadows(str) {
   return shadows.length ? shadows : null;
 }
 
+// Parse a list of "color [pos%]" segments into ordered {color, position}
+// stops, filling missing positions evenly. Non-color segments (gradient shape
+// descriptors) are skipped. Returns null if fewer than 2 real stops.
+function parseColorStops(parts) {
+  const stops = [];
+  for (const part of parts) {
+    const color = parseColor(part);
+    if (!color) continue;
+    const posMatch = part.replace(/rgba?\([^)]*\)/, '').match(/(-?[\d.]+)%/);
+    stops.push({ color, position: posMatch ? parseFloat(posMatch[1]) / 100 : null });
+  }
+  if (stops.length < 2) return null;
+  if (stops[0].position === null) stops[0].position = 0;
+  if (stops[stops.length - 1].position === null) stops[stops.length - 1].position = 1;
+  for (let s = 1; s < stops.length - 1; s++) {
+    if (stops[s].position === null) {
+      let next = s;
+      while (stops[next].position === null) next++;
+      const prev = stops[s - 1].position;
+      stops[s].position = prev + (stops[next].position - prev) / (next - s + 1);
+    }
+  }
+  for (const s of stops) s.position = Math.min(1, Math.max(0, s.position));
+  return stops;
+}
+
+// Extract the balanced-paren body of the first `name(` in a value.
+function gradientBody(value, name) {
+  const start = String(value).indexOf(`${name}(`);
+  if (start === -1) return null;
+  let i = start + name.length + 1;
+  let depth = 1;
+  let body = '';
+  while (i < value.length && depth > 0) {
+    const ch = value[i];
+    if (ch === '(') depth++;
+    if (ch === ')') depth--;
+    if (depth > 0) body += ch;
+    i++;
+  }
+  return body;
+}
+
+/**
+ * First radial-gradient() → Figma { type: 'RADIAL', stops, transform } or null.
+ * The shape/size/position descriptor is skipped (non-color) and stops parsed
+ * from the rest. NOTE: the radial `transform` is a centered best-effort default
+ * pending verification against live Figma (Phase 2.3).
+ */
+export function parseRadialGradient(bgImage) {
+  const body = gradientBody(bgImage, 'radial-gradient');
+  if (body === null) return null;
+  const stops = parseColorStops(splitTopLevel(body));
+  if (!stops) return null;
+  // Centered radial that fills the box (center 0.5,0.5, radius 0.5).
+  return { type: 'RADIAL', stops, transform: [[0.5, 0, 0.25], [0, 0.5, 0.25]] };
+}
+
 /**
  * First linear-gradient() in a background-image value → Figma gradient
  * { stops: [{color, position}], transform } or null. The transform's first row
@@ -128,25 +186,8 @@ export function parseLinearGradient(bgImage) {
     stopParts = parts.slice(1);
   }
 
-  const stops = [];
-  for (const part of stopParts) {
-    const color = parseColor(part);
-    if (!color) continue;
-    const posMatch = part.replace(/rgba?\([^)]*\)/, '').match(/(-?[\d.]+)%/);
-    stops.push({ color, position: posMatch ? parseFloat(posMatch[1]) / 100 : null });
-  }
-  if (stops.length < 2) return null;
-  if (stops[0].position === null) stops[0].position = 0;
-  if (stops[stops.length - 1].position === null) stops[stops.length - 1].position = 1;
-  for (let s = 1; s < stops.length - 1; s++) {
-    if (stops[s].position === null) {
-      let next = s;
-      while (stops[next].position === null) next++;
-      const prev = stops[s - 1].position;
-      stops[s].position = prev + (stops[next].position - prev) / (next - s + 1);
-    }
-  }
-  for (const s of stops) s.position = Math.min(1, Math.max(0, s.position));
+  const stops = parseColorStops(stopParts);
+  if (!stops) return null;
 
   // CSS angle: 0deg = to top, 90deg = to right. Compute the gradient line on
   // the unit box, then build the inverse transform whose first row is t(x, y).
@@ -454,7 +495,7 @@ export function mapBoxStyle(cs, rect) {
   const bg = parseColor(cs.backgroundColor);
   if (bg) st.background = bg;
   if (cs.backgroundImage && cs.backgroundImage !== 'none') {
-    const grad = parseLinearGradient(cs.backgroundImage);
+    const grad = parseLinearGradient(cs.backgroundImage) || parseRadialGradient(cs.backgroundImage);
     if (grad) st.gradient = grad;
     else {
       const url = matchCssUrl(cs.backgroundImage);

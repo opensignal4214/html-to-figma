@@ -153,8 +153,14 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
 
 - [ ] **4.1 Multiple background layers** (S) — Figma fills are already an
   array; emit every parsed layer (bottom-up) instead of the first.
-- [ ] **4.2 Radial / conic gradients** (M) — → GRADIENT_RADIAL /
-  GRADIENT_ANGULAR with transforms from shape/size/position.
+- [~] **4.2 Radial gradients done; conic deferred** (M) —
+  `parseRadialGradient()` emits `{ type: 'RADIAL', stops, transform }` (shared
+  stop parser with linear; descriptor skipped); builder emits GRADIENT_RADIAL;
+  preview renders an SVG radialGradient (verified 98.9% on a red→blue fixture).
+  Linear gradients keep no `type` key so the baseline is unchanged. The radial
+  `gradientTransform` is a centered best-effort default — confirm against live
+  Figma in 2.3. **Conic → GRADIENT_ANGULAR deferred** (rarer; angular transform
+  murkier). Radial size/position beyond centered-fill is a follow-up.
 - [ ] **4.3 Pseudo-elements `::before`/`::after`** (M) —
   `getComputedStyle(el, '::before')` with non-`none` content → synthesized
   child nodes (decorative shapes, icons, quotes are everywhere).

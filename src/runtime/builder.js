@@ -146,7 +146,7 @@ function __frameFills(st) {
   if (st.background) fills.push(__solid(st.background));
   if (st.gradient) {
     fills.push({
-      type: 'GRADIENT_LINEAR',
+      type: st.gradient.type === 'RADIAL' ? 'GRADIENT_RADIAL' : 'GRADIENT_LINEAR',
       gradientTransform: st.gradient.transform,
       gradientStops: st.gradient.stops.map(function (s) {
         return { position: s.position, color: { r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a } };
