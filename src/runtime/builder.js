@@ -157,6 +157,19 @@ async function __createText(n, ctx) {
   if (t.decoration) node.textDecoration = t.decoration;
   if (t.case) node.textCase = t.case;
   node.fills = [__solid(t.color || { r: 0, g: 0, b: 0, a: 1 })];
+  if (t.shadows && t.shadows.length && 'effects' in node) {
+    node.effects = t.shadows.map(function (s) {
+      return {
+        type: 'DROP_SHADOW',
+        color: { r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a },
+        offset: { x: s.x, y: s.y },
+        radius: s.blur || 0,
+        spread: 0,
+        visible: true,
+        blendMode: 'NORMAL',
+      };
+    });
+  }
   node.textAutoResize = 'NONE';
   node.resize(Math.max(n.rect.width, 1), Math.max(n.rect.height, 1));
   node.name = n.name || (t.characters || 'text').slice(0, 40);

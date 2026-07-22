@@ -321,6 +321,16 @@ test('mapTextStyle: weight, italic, metrics, color', () => {
   assert.deepEqual(t.color, { r: 1, g: 1, b: 1, a: 1 });
 });
 
+test('mapTextStyle: no text-shadow → no shadows key (keeps tree lean)', () => {
+  assert.equal(mapTextStyle(textBase).shadows, undefined);
+});
+
+test('mapTextStyle: text-shadow parsed into shadow effects', () => {
+  const t = mapTextStyle({ ...textBase, textShadow: 'rgba(0, 0, 0, 0.5) 1px 2px 3px' });
+  assert.equal(t.shadows.length, 1);
+  assert.deepEqual(t.shadows[0], { x: 1, y: 2, blur: 3, spread: 0, inset: false, color: { r: 0, g: 0, b: 0, a: 0.5 } });
+});
+
 test('mapTextStyle: align, decoration, transform keywords', () => {
   const t = mapTextStyle({
     ...textBase,

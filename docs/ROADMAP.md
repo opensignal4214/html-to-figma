@@ -131,7 +131,10 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   browser and emit vectors — pixel-perfect, non-editable, per-node opt-in via
   the rasterize-fallback flagging from 2.2.
 - [ ] **3.4 `text-overflow: ellipsis` → `textTruncation`** (S)
-- [ ] **3.5 `text-shadow` → DROP_SHADOW on TextNodes** (S)
+- [x] **3.5 `text-shadow` → DROP_SHADOW on TextNodes** (S)
+  `mapTextStyle` parses `text-shadow` (reusing `parseShadows`) into the text
+  style only when present; builder emits DROP_SHADOW effects on the TextNode;
+  preview renders CSS text-shadow. Unit-tested; baseline unchanged.
 - [ ] **3.6 RTL / `direction` support** (M)
   Mirror alignment mapping and Auto Layout ordering under `direction: rtl`.
 

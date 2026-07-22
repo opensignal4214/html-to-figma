@@ -430,7 +430,7 @@ export function lineBoxRect(tight, lineHeightPx, lineCount) {
 /** Computed-style-like object → tree `text` style fields (sans characters). */
 export function mapTextStyle(cs) {
   const decorationLine = cs.textDecorationLine || '';
-  return {
+  const style = {
     fontFamily: cs.fontFamily,
     fontWeight: parseFloat(cs.fontWeight) || 400,
     italic: cs.fontStyle.includes('italic'),
@@ -446,4 +446,7 @@ export function mapTextStyle(cs) {
         : null,
     case: TEXT_CASE[cs.textTransform] || null,
   };
+  const shadows = parseShadows(cs.textShadow);
+  if (shadows) style.shadows = shadows; // only when present, so untouched text stays lean
+  return style;
 }
