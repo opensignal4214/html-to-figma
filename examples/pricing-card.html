@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pricing — example for html-to-figma</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: Inter, Arial, sans-serif;
+    background: #f4f5f7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    padding: 64px 32px;
+  }
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+  }
+  .hero h1 { font-size: 40px; font-weight: 800; color: #111827; }
+  .hero p { font-size: 18px; color: #6b7280; }
+  .cards { display: flex; gap: 24px; align-items: stretch; }
+  .card {
+    width: 300px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-shadow: 0 10px 25px rgba(17, 24, 39, 0.08);
+  }
+  .card.featured {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border: none;
+    box-shadow: 0 20px 40px rgba(79, 70, 229, 0.35);
+  }
+  .card.featured h2, .card.featured .price, .card.featured li { color: #ffffff; }
+  .card.featured .per { color: #c7d2fe; }
+  .badge {
+    align-self: flex-start;
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .card h2 { font-size: 20px; font-weight: 700; color: #111827; }
+  .price-row { display: flex; align-items: baseline; gap: 6px; }
+  .price { font-size: 44px; font-weight: 800; color: #111827; }
+  .per { font-size: 14px; color: #9ca3af; }
+  .card ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .card li { font-size: 14px; color: #4b5563; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
+  .card.featured .dot { background: #a7f3d0; }
+  .btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 44px;
+    border-radius: 10px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .btn.light { background: #ffffff; color: #4f46e5; }
+  .footer-note { display: flex; align-items: center; gap: 8px; color: #6b7280; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="hero" data-figma-component="Hero">
+    <h1>Simple pricing</h1>
+    <p>Start free, upgrade when your team grows.</p>
+  </div>
+
+  <div class="cards">
+    <div class="card" data-figma-component="Card / Starter">
+      <h2>Starter</h2>
+      <div class="price-row"><span class="price">$0</span><span class="per">/month</span></div>
+      <ul>
+        <li><span class="dot"></span>Up to 3 projects</li>
+        <li><span class="dot"></span>Community support</li>
+        <li><span class="dot"></span>1 GB storage</li>
+      </ul>
+      <div class="btn">Get started</div>
+    </div>
+
+    <div class="card featured" data-figma-component="Card / Pro">
+      <span class="badge">Most popular</span>
+      <h2>Pro</h2>
+      <div class="price-row"><span class="price">$24</span><span class="per">/month</span></div>
+      <ul>
+        <li><span class="dot"></span>Unlimited projects</li>
+        <li><span class="dot"></span>Priority support</li>
+        <li><span class="dot"></span>100 GB storage</li>
+      </ul>
+      <div class="btn light">Start free trial</div>
+    </div>
+  </div>
+
+  <div class="footer-note" data-figma-component="Footer Note">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="7" stroke="#10b981" stroke-width="2"/>
+      <path d="M5 8l2 2 4-4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>No credit card required · Cancel anytime</span>
+  </div>
+</body>
+</html>

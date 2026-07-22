@@ -1,0 +1,30 @@
+{
+  "name": "html-to-figma",
+  "version": "0.1.0",
+  "description": "Render HTML in headless Chromium and generate a Figma plugin script that rebuilds it as Figma components (flexbox → Auto Layout, real text, fills, shadows, images, SVG).",
+  "type": "module",
+  "bin": {
+    "html-to-figma": "bin/html-to-figma.js"
+  },
+  "main": "src/index.js",
+  "scripts": {
+    "example": "node bin/html-to-figma.js examples/pricing-card.html -o out",
+    "test": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/mock-figma-run.js out/figma-script.js && node test/mock-figma-run.js out/figma-plugin/code.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  },
+  "keywords": [
+    "figma",
+    "html",
+    "css",
+    "design",
+    "codegen",
+    "figma-plugin",
+    "auto-layout"
+  ],
+  "license": "MIT"
+}
