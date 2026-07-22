@@ -42,10 +42,13 @@ three-layer local test harness (unit / mock-API / visual preview).
   aligned bounding box → rotated cards come out unrotated and wrongly sized.
   Decompose the computed transform matrix; emit untransformed size + rotation
   (Figma `rotation`/`relativeTransform`). Skew falls back to rasterize (2.2).
-- [ ] **1.3 List markers** (S)
-  Native `<ul>`/`<ol>` bullets and numbers are `::marker` pseudo-elements and
-  vanish today. Read `getComputedStyle(el, '::marker')` + synthesize a TEXT
-  child per item.
+- [x] **1.3 List markers** (S)
+  `markerString()` maps `list-style-type` + ordinal to the marker glyph/number
+  (disc/circle/square, decimal[-leading-zero], lower/upper alpha & roman);
+  extractor computes the ordinal (honoring `<ol start>` and `<li value>`),
+  measures width via canvas, and synthesizes a positioned TEXT child in the
+  list gutter (or content edge for `inside`). Unit + e2e tested. Image markers
+  (`list-style-image`) still skipped.
 - [ ] **1.4 `clip-path` and CSS masks** (M)
   Angled section dividers, non-rect image crops → Figma vector masks for
   polygon/inset/circle/ellipse clip paths; anything else → rasterize (2.2).

@@ -211,6 +211,61 @@ export function paintOrder(items) {
   return decorated.map((d) => d.i);
 }
 
+/** Roman numeral for 1..3999, else the number as a string. */
+export function romanNumeral(n) {
+  if (!Number.isInteger(n) || n < 1 || n > 3999) return String(n);
+  const table = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'],
+    [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ];
+  let out = '';
+  let v = n;
+  for (const [value, sym] of table) {
+    while (v >= value) {
+      out += sym;
+      v -= value;
+    }
+  }
+  return out;
+}
+
+/** Bijective base-26 label: 1→A, 26→Z, 27→AA. */
+export function alphaLabel(n) {
+  if (!Number.isInteger(n) || n < 1) return String(n);
+  let out = '';
+  let v = n;
+  while (v > 0) {
+    const rem = (v - 1) % 26;
+    out = String.fromCharCode(65 + rem) + out;
+    v = Math.floor((v - 1) / 26);
+  }
+  return out;
+}
+
+const BULLET_GLYPHS = { disc: '•', circle: '◦', square: '▪' };
+
+/**
+ * The rendered `::marker` string for a list item, given its `list-style-type`
+ * and 1-based ordinal (ordinal is ignored for bullets). Unknown types fall
+ * back to a disc bullet.
+ */
+export function markerString(type, ordinal) {
+  if (type === 'none') return '';
+  if (BULLET_GLYPHS[type]) return BULLET_GLYPHS[type];
+  const n = ordinal;
+  switch (type) {
+    case 'decimal': return `${n}.`;
+    case 'decimal-leading-zero': return `${n < 10 && n >= 0 ? '0' : ''}${n}.`;
+    case 'lower-alpha':
+    case 'lower-latin': return `${alphaLabel(n).toLowerCase()}.`;
+    case 'upper-alpha':
+    case 'upper-latin': return `${alphaLabel(n)}.`;
+    case 'lower-roman': return `${romanNumeral(n).toLowerCase()}.`;
+    case 'upper-roman': return `${romanNumeral(n)}.`;
+    default: return '•';
+  }
+}
+
 /** Computed-style-like object → tree `layout` (Auto Layout mapping). */
 export function mapFlexLayout(cs) {
   if (!cs.display.includes('flex')) return { mode: 'NONE' };

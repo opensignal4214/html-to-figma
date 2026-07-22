@@ -31,6 +31,22 @@ test('z-index: children emitted in back-to-front paint order, not DOM order', as
   assert.deepEqual(order, ['Behind', 'Back', 'Front']);
 });
 
+test('list markers: ul bullets and ol numbers (with start) synthesized as text', async () => {
+  const tree = await extractTree(fixture('list.html'), { width: 400, height: 300 });
+  const markers = [];
+  const collect = (n) => {
+    if (n.type === 'TEXT' && /^marker/.test(n.name || '')) markers.push(n.text.characters);
+    for (const c of n.children || []) collect(c);
+  };
+  collect(tree);
+  // Two disc bullets, then ol numbers continuing from start="3".
+  assert.deepEqual(markers, ['•', '•', '3.', '4.']);
+  // Markers sit left of their list item's content (in the gutter).
+  const bulletNode = find(tree, (n) => n.type === 'TEXT' && n.name.startsWith('marker') && n.text.characters === '•');
+  const itemNode = find(tree, (n) => n.type === 'TEXT' && n.text.characters === 'Apples');
+  assert.ok(bulletNode.rect.x < itemNode.rect.x, 'bullet is left of the item text');
+});
+
 test('line-box: single-line text captured at full line-height, no drift', async () => {
   const tree = await extractTree(fixture('line-box.html'), { width: 400, height: 300 });
   const first = find(tree, (n) => n.type === 'TEXT' && n.text.characters === 'First line');

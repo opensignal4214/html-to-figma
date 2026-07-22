@@ -111,6 +111,56 @@ const EXTRACTOR = async ({ selector }) => {
     };
   };
 
+  const measureTextWidth = (str, cs) => {
+    const ctx = (window.__mctx = window.__mctx || document.createElement('canvas').getContext('2d'));
+    ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    return ctx.measureText(str).width;
+  };
+
+  // 1-based ordinal of a list item, honoring <ol start> and per-<li value>.
+  const listItemOrdinal = (el) => {
+    const parent = el.parentElement;
+    if (!parent) return 1;
+    let cur = parent.tagName === 'OL' ? parseInt(parent.getAttribute('start'), 10) || 1 : 1;
+    for (const sib of parent.children) {
+      if (sib.tagName !== 'LI') continue;
+      if (sib.hasAttribute('value')) cur = parseInt(sib.getAttribute('value'), 10) || cur;
+      if (sib === el) return cur;
+      cur++;
+    }
+    return cur;
+  };
+
+  // Synthesize a TEXT node for a list item's ::marker (bullet or number), which
+  // the DOM walk can't otherwise see. Positioned in the list's left gutter for
+  // `outside` markers, at the content edge for `inside`.
+  const markerNode = (el, cs) => {
+    if (cs.display !== 'list-item' || cs.listStyleType === 'none') return null;
+    if (cs.listStyleImage && cs.listStyleImage !== 'none') return null; // image markers unsupported
+    const characters = M.markerString(cs.listStyleType, listItemOrdinal(el));
+    if (!characters) return null;
+    const style = M.mapTextStyle(cs);
+    const liRect = el.getBoundingClientRect();
+    const fontPx = parseFloat(cs.fontSize) || 16;
+    const w = Math.ceil(measureTextWidth(characters, cs)) + 1;
+    const inside = cs.listStylePosition === 'inside';
+    const x = inside
+      ? liRect.left + (parseFloat(cs.paddingLeft) || 0)
+      : liRect.left - fontPx * 0.5 - w;
+    const height = style.lineHeightPx || Math.round(fontPx * 1.3);
+    return {
+      type: 'TEXT',
+      name: `marker "${characters}"`,
+      rect: {
+        x: round(x + window.scrollX),
+        y: round(liRect.top + (parseFloat(cs.paddingTop) || 0) + window.scrollY),
+        width: w,
+        height,
+      },
+      text: { characters, ...style },
+    };
+  };
+
   const SKIP_TAGS = new Set(['script', 'style', 'link', 'meta', 'noscript', 'template', 'head', 'title', 'br', 'wbr', 'source', 'track', 'iframe']);
 
   const walk = async (el) => {
@@ -209,6 +259,13 @@ const EXTRACTOR = async ({ selector }) => {
           node.children.push(childTree);
         }
       }
+    }
+
+    // Synthesize the list-item marker (bullet/number) the DOM walk can't see.
+    const marker = markerNode(el, cs);
+    if (marker) {
+      marker._po = { position: 'static', zIndex: 'auto', flexItem: parentIsFlex };
+      node.children.unshift(marker);
     }
 
     // Reorder children into Figma back-to-front z-order (DOM order ≠ paint order).
