@@ -353,6 +353,19 @@ const EXTRACTOR = async ({ selector, textFidelity }) => {
       delete node.style.bgScaleMode;
     }
 
+    // Multiple background layers: fetch bytes for each image layer.
+    if (node.style.bgLayers) {
+      for (const layer of node.style.bgLayers) {
+        if (layer.kind !== 'image') continue;
+        const asset = await fetchAsset(new URL(layer.url, location.href).href);
+        if (asset && asset.base64) {
+          layer.base64 = asset.base64;
+          if (layer.scaleMode === 'TILE') layer.scalingFactor = 1;
+        }
+        delete layer.url;
+      }
+    }
+
     // Form controls: synthesize a text child from value/placeholder.
     if (tag === 'input' || tag === 'textarea' || tag === 'select') {
       const value = tag === 'select' ? (el.selectedOptions[0] ? el.selectedOptions[0].textContent : '') : el.value || el.placeholder || '';

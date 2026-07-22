@@ -270,6 +270,38 @@ test('mapBoxStyle: linear-gradient captured, url() left for async fetch', () => 
   assert.equal(contain.bgScaleMode, 'FIT');
 });
 
+test('mapBoxStyle: single background layer keeps the existing keys (baseline-safe)', () => {
+  const grad = mapBoxStyle(
+    { ...boxBase, backgroundImage: 'linear-gradient(90deg, rgb(0,0,0), rgb(255,255,255))' },
+    rect100,
+  );
+  assert.ok(grad.gradient, 'single gradient uses st.gradient');
+  assert.equal(grad.bgLayers, undefined, 'no bgLayers for a single layer');
+});
+
+test('mapBoxStyle: multiple background layers → ordered bgLayers (first = top)', () => {
+  const st = mapBoxStyle(
+    {
+      ...boxBase,
+      backgroundColor: 'rgb(255, 255, 255)',
+      backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("hero.jpg")',
+      backgroundSize: 'auto, cover',
+      backgroundRepeat: 'repeat, no-repeat',
+    },
+    rect100,
+  );
+  assert.equal(st.gradient, undefined, 'multi-layer does not set the single gradient key');
+  assert.equal(st.bgUrl, undefined);
+  assert.equal(st.bgLayers.length, 2);
+  // CSS order: layer 0 is the top gradient overlay, layer 1 is the image.
+  assert.equal(st.bgLayers[0].kind, 'gradient');
+  assert.ok(st.bgLayers[0].gradient.stops);
+  assert.equal(st.bgLayers[1].kind, 'image');
+  assert.equal(st.bgLayers[1].url, 'hero.jpg');
+  assert.equal(st.bgLayers[1].scaleMode, 'FILL'); // cover, no-repeat
+  assert.deepEqual(st.background, { r: 1, g: 1, b: 1, a: 1 }); // solid stays for the bottom
+});
+
 test('mapBoxStyle: repeating natural-size background image → TILE', () => {
   const tile = mapBoxStyle(
     { ...boxBase, backgroundImage: 'url("tex.png")', backgroundRepeat: 'repeat', backgroundSize: 'auto' },

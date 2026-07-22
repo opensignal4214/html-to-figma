@@ -141,24 +141,44 @@ function __applyBox(node, st) {
   if ('clipsContent' in node) node.clipsContent = !!st.clip;
 }
 
+function __gradientPaint(g) {
+  return {
+    type: g.type === 'RADIAL' ? 'GRADIENT_RADIAL' : 'GRADIENT_LINEAR',
+    gradientTransform: g.transform,
+    gradientStops: g.stops.map(function (s) {
+      return { position: s.position, color: { r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a } };
+    }),
+  };
+}
+
+function __imagePaint(layer) {
+  var img = figma.createImage(__base64ToBytes(layer.base64));
+  var fill = { type: 'IMAGE', imageHash: img.hash, scaleMode: layer.scaleMode || 'FILL' };
+  if (fill.scaleMode === 'TILE') fill.scalingFactor = layer.scalingFactor || 1;
+  return fill;
+}
+
 function __frameFills(st) {
   var fills = [];
   if (st.background) fills.push(__solid(st.background));
-  if (st.gradient) {
-    fills.push({
-      type: st.gradient.type === 'RADIAL' ? 'GRADIENT_RADIAL' : 'GRADIENT_LINEAR',
-      gradientTransform: st.gradient.transform,
-      gradientStops: st.gradient.stops.map(function (s) {
-        return { position: s.position, color: { r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a } };
-      }),
-    });
+  // Multiple background layers: CSS order is top→bottom, Figma fills are
+  // bottom→top, so emit the layers reversed above the solid background.
+  if (st.bgLayers) {
+    for (var li = st.bgLayers.length - 1; li >= 0; li--) {
+      var layer = st.bgLayers[li];
+      try {
+        if (layer.kind === 'gradient') fills.push(__gradientPaint(layer.gradient));
+        else if (layer.kind === 'image' && layer.base64) fills.push(__imagePaint(layer));
+      } catch (e) {
+        console.warn('html-to-figma: background layer skipped: ' + e.message);
+      }
+    }
+    return fills;
   }
+  if (st.gradient) fills.push(__gradientPaint(st.gradient));
   if (st.backgroundImage && st.backgroundImage.base64) {
     try {
-      var img = figma.createImage(__base64ToBytes(st.backgroundImage.base64));
-      var bgFill = { type: 'IMAGE', imageHash: img.hash, scaleMode: st.backgroundImage.scaleMode || 'FILL' };
-      if (bgFill.scaleMode === 'TILE') bgFill.scalingFactor = st.backgroundImage.scalingFactor || 1;
-      fills.push(bgFill);
+      fills.push(__imagePaint(st.backgroundImage));
     } catch (e) {
       console.warn('html-to-figma: background image skipped: ' + e.message);
     }

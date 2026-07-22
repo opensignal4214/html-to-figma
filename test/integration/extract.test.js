@@ -48,6 +48,19 @@ test('text-fidelity exact: wrapping text splits into one node per line', async (
   for (const l of lines) assert.ok(!/\n/.test(l.text.characters));
 });
 
+test('multiple backgrounds: gradient overlay over image → ordered bgLayers with bytes', async () => {
+  const tree = await extractTree(fixture('multi-bg.html'), { width: 400, height: 300 });
+  const hero = find(tree, (n) => n.component === 'Hero');
+  assert.ok(hero && hero.style.bgLayers, 'Hero has bgLayers');
+  assert.equal(hero.style.bgLayers.length, 2);
+  // CSS order: top layer is the gradient overlay, bottom is the image.
+  assert.equal(hero.style.bgLayers[0].kind, 'gradient');
+  assert.equal(hero.style.bgLayers[1].kind, 'image');
+  assert.ok(hero.style.bgLayers[1].base64 && hero.style.bgLayers[1].base64.length > 50, 'image layer inlined');
+  assert.equal(hero.style.bgLayers[1].url, undefined, 'transient url cleaned up');
+  assert.equal(hero.style.gradient, undefined, 'single-layer keys unused');
+});
+
 test('rasterize fallback: unmappable elements become flagged image captures', async () => {
   const tree = await extractTree(fixture('raster.html'), { width: 400, height: 200 });
   const rasters = [];

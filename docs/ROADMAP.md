@@ -154,8 +154,13 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
 
 ## Phase 4 — Visual completeness
 
-- [ ] **4.1 Multiple background layers** (S) — Figma fills are already an
-  array; emit every parsed layer (bottom-up) instead of the first.
+- [x] **4.1 Multiple background layers** (S) — `mapBoxStyle` emits an ordered
+  `style.bgLayers` (gradient/image, CSS top→bottom) only when >1 layer, so
+  single-layer output stays baseline-identical; extractor inlines each image
+  layer's bytes; builder stacks them reversed above the solid background
+  (Figma fills are bottom→top) via shared `__gradientPaint`/`__imagePaint`.
+  Unit + e2e tested; gradient-over-image fixture renders 99.7% in the preview.
+  Plan: `docs/plans/4.1-multiple-backgrounds.md`.
 - [~] **4.2 Radial gradients done; conic deferred** (M) —
   `parseRadialGradient()` emits `{ type: 'RADIAL', stops, transform }` (shared
   stop parser with linear; descriptor skipped); builder emits GRADIENT_RADIAL;

@@ -4,11 +4,13 @@ Two rules govern all non-trivial work in this repo:
 
 1. **Plan doc first.** Before implementing any roadmap item or non-trivial
    change, write `docs/plans/<item>.md` (problem, design, schema/interface
-   changes, test plan, risks) and get sign-off **before** writing code.
-   The only exception is a genuinely low-complexity quick fix (typo, one-line
-   correction, doc tweak) — those can go straight to a TDD change.
-   When unsure whether something is "quick fix" or "needs a plan", write the
-   plan.
+   changes, test plan, risks). Once the plan exists you may **proceed to
+   implement on your own** — you do not need to wait for sign-off unless the
+   user explicitly says to wait.
+   The only exception to needing a plan at all is a genuinely low-complexity
+   quick fix (typo, one-line correction, doc tweak) — those go straight to a
+   TDD change. When unsure whether something is "quick fix" or "needs a plan",
+   write the plan.
 
 2. **TDD, always.** Every behavior change follows: failing test first →
    implement until green → run the full suite. No implementation lands without

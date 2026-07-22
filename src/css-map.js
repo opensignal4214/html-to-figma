@@ -489,22 +489,49 @@ export function mapFlexLayout(cs) {
   };
 }
 
+// Figma image scale mode for a background layer from its size/repeat values.
+// A repeating natural-size image tiles; contain → FIT; otherwise FILL.
+function layerScaleMode(sizeStr, repeatStr) {
+  const repeats = repeatStr && repeatStr !== 'no-repeat';
+  const autoSize = !sizeStr || sizeStr === 'auto' || sizeStr === 'auto auto';
+  return repeats && autoSize ? 'TILE' : sizeStr === 'contain' ? 'FIT' : 'FILL';
+}
+
 /** Computed-style-like object + rect → tree `style` (box visuals). */
 export function mapBoxStyle(cs, rect) {
   const st = {};
   const bg = parseColor(cs.backgroundColor);
   if (bg) st.background = bg;
   if (cs.backgroundImage && cs.backgroundImage !== 'none') {
-    const grad = parseLinearGradient(cs.backgroundImage) || parseRadialGradient(cs.backgroundImage);
-    if (grad) st.gradient = grad;
-    else {
-      const url = matchCssUrl(cs.backgroundImage);
-      if (url) {
-        st.bgUrl = url; // resolved to bytes by the extractor
-        const repeats = cs.backgroundRepeat && cs.backgroundRepeat !== 'no-repeat';
-        const autoSize = !cs.backgroundSize || cs.backgroundSize === 'auto' || cs.backgroundSize === 'auto auto';
-        // A repeating natural-size image tiles; otherwise it's a single fill/fit.
-        st.bgScaleMode = repeats && autoSize ? 'TILE' : cs.backgroundSize === 'contain' ? 'FIT' : 'FILL';
+    const layers = splitTopLevel(cs.backgroundImage).filter((s) => s && s !== 'none');
+    if (layers.length > 1) {
+      // Multiple background-image layers (CSS order: first = topmost). Leave the
+      // single-layer keys unset so single-layer output stays baseline-identical.
+      const sizes = splitTopLevel(cs.backgroundSize || 'auto');
+      const repeats = splitTopLevel(cs.backgroundRepeat || 'repeat');
+      const parsed = [];
+      for (let i = 0; i < layers.length; i++) {
+        const grad = parseLinearGradient(layers[i]) || parseRadialGradient(layers[i]);
+        if (grad) {
+          parsed.push({ kind: 'gradient', gradient: grad });
+          continue;
+        }
+        const url = matchCssUrl(layers[i]);
+        if (url) {
+          parsed.push({ kind: 'image', url, scaleMode: layerScaleMode(sizes[i % sizes.length], repeats[i % repeats.length]) });
+        }
+      }
+      if (parsed.length) st.bgLayers = parsed;
+    } else {
+      const grad = parseLinearGradient(cs.backgroundImage) || parseRadialGradient(cs.backgroundImage);
+      if (grad) st.gradient = grad;
+      else {
+        const url = matchCssUrl(cs.backgroundImage);
+        // resolved to bytes by the extractor
+        if (url) {
+          st.bgUrl = url;
+          st.bgScaleMode = layerScaleMode(cs.backgroundSize, cs.backgroundRepeat);
+        }
       }
     }
   }

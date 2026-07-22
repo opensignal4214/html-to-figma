@@ -89,7 +89,8 @@ parent-relative at creation time. All colors are `{ r, g, b, a }` in 0..1.
 |---|---|---|
 | `background` | color | `background-color` → SOLID fill |
 | `gradient` | `{ stops: [{color, position}], transform: [[m00,m01,m02],[m10,m11,m12]] }` | first `linear-gradient()` → GRADIENT_LINEAR fill (transform maps normalized box coords to gradient `t`) |
-| `backgroundImage` | `{ base64, scaleMode }` | `background-image: url()` → IMAGE fill |
+| `backgroundImage` | `{ base64, scaleMode }` | single `background-image: url()` → IMAGE fill |
+| `bgLayers` | `[{ kind:'gradient', gradient } \| { kind:'image', base64, scaleMode }]` | multiple background layers (CSS top→bottom); builder stacks them reversed above `background`. Present only when >1 layer |
 | `border` | `{ width, color, dashed }` | uniform stroke, INSIDE-aligned (CSS borders are inside the border-box) |
 | `radius` | `{ tl, tr, br, bl }` px | corner radii; `%` resolved against `min(width, height)` |
 | `opacity` | number | only present when `< 1` |
@@ -165,8 +166,9 @@ Three layers, cheapest first — none require the Figma app:
 may skip the plan doc — but never skips TDD.
 
 0. **Write a plan doc** at `docs/plans/<item>.md` — problem, design, schema/
-   interface changes, TDD test plan, risks — and get sign-off **before** any
-   code. When unsure if something needs a plan, write the plan.
+   interface changes, TDD test plan, risks. Once it exists, proceed to
+   implement (no need to wait for sign-off unless the user says to wait). When
+   unsure if something needs a plan, write the plan.
 
 For any behavior change or new mapping (e.g. CSS Grid support):
 
