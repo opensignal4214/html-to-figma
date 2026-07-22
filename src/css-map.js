@@ -397,11 +397,25 @@ export function mapBoxStyle(cs, rect) {
       }
     }
   }
-  const widths = ['Top', 'Right', 'Bottom', 'Left'].map((s) => parseFloat(cs[`border${s}Width`]) || 0);
+  const sides = ['Top', 'Right', 'Bottom', 'Left'];
+  const widths = sides.map((s) => parseFloat(cs[`border${s}Width`]) || 0);
   const maxW = Math.max(...widths);
   if (maxW > 0) {
-    const color = parseColor(cs.borderTopColor) || parseColor(cs.borderLeftColor) || parseColor(cs.borderBottomColor);
-    if (color) st.border = { width: round(maxW), color, dashed: cs.borderTopStyle === 'dashed' };
+    // Figma strokes are a single paint (no per-side colors), so take the color
+    // of the widest side; per-side *widths* are expressible, per-side colors
+    // are not (unequal colors are a rasterize-fallback case).
+    const widestSide = sides[widths.indexOf(maxW)];
+    const color =
+      parseColor(cs[`border${widestSide}Color`]) ||
+      parseColor(cs.borderTopColor) || parseColor(cs.borderRightColor) ||
+      parseColor(cs.borderBottomColor) || parseColor(cs.borderLeftColor);
+    if (color) {
+      const dashed = cs.borderTopStyle === 'dashed';
+      const uniform = widths.every((w) => w === widths[0]);
+      st.border = uniform
+        ? { width: round(maxW), color, dashed }
+        : { top: round(widths[0]), right: round(widths[1]), bottom: round(widths[2]), left: round(widths[3]), color, dashed };
+    }
   }
   const base = Math.min(rect.width, rect.height);
   const radius = {

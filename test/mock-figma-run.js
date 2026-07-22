@@ -27,6 +27,7 @@ function makeNode(type) {
     effects: [],
     dashPattern: [],
     strokeWeight: 1,
+    strokeTopWeight: 0, strokeRightWeight: 0, strokeBottomWeight: 0, strokeLeftWeight: 0,
     strokeAlign: 'INSIDE',
     cornerRadius: 0,
     topLeftRadius: 0,

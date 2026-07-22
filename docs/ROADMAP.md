@@ -153,8 +153,11 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
 - [ ] **4.3 Pseudo-elements `::before`/`::after`** (M) —
   `getComputedStyle(el, '::before')` with non-`none` content → synthesized
   child nodes (decorative shapes, icons, quotes are everywhere).
-- [ ] **4.4 Per-side borders** (M) — unequal widths → individual
-  `strokeTopWeight`/… instead of collapsing to the max side.
+- [x] **4.4 Per-side borders** (M) — unequal widths → per-side
+  `strokeTop/Right/Bottom/LeftWeight` (uniform borders keep the single-weight
+  form; baseline unchanged). Color comes from the widest side — Figma strokes
+  are one paint, so per-side *colors* remain a rasterize-fallback case.
+  Unit + through-mock tested; preview draws each side.
 - [ ] **4.5 Filters** (S) — `filter: blur()` → LAYER_BLUR,
   `backdrop-filter: blur()` → BACKGROUND_BLUR, `drop-shadow()` → DROP_SHADOW;
   other filter functions → rasterize fallback.

@@ -45,6 +45,7 @@ function makeNode(type) {
     blendMode: 'NORMAL',
     fills: [], strokes: [], effects: [], dashPattern: [],
     strokeWeight: 1, strokeAlign: 'INSIDE',
+    strokeTopWeight: 0, strokeRightWeight: 0, strokeBottomWeight: 0, strokeLeftWeight: 0,
     cornerRadius: 0,
     topLeftRadius: 0, topRightRadius: 0, bottomRightRadius: 0, bottomLeftRadius: 0,
     clipsContent: false,
@@ -205,11 +206,22 @@ function renderBox(n) {
       out += img;
     }
   }
-  if ((n.strokes || []).length && n.strokeWeight > 0) {
+  if ((n.strokes || []).length) {
     const s = n.strokes[0];
-    const w = n.strokeWeight;
-    const dash = n.dashPattern && n.dashPattern.length ? ` stroke-dasharray="${n.dashPattern.join(' ')}"` : '';
-    out += `<rect x="${w / 2}" y="${w / 2}" width="${Math.max(0, n.width - w)}" height="${Math.max(0, n.height - w)}" rx="${Math.max(0, rx - w / 2)}" fill="none" stroke="${rgba(s.color, s.opacity ?? 1)}" stroke-width="${w}"${dash}/>`;
+    const col = rgba(s.color, s.opacity ?? 1);
+    const perSide = [n.strokeTopWeight, n.strokeRightWeight, n.strokeBottomWeight, n.strokeLeftWeight].some((x) => x) &&
+      !(n.strokeTopWeight === n.strokeRightWeight && n.strokeRightWeight === n.strokeBottomWeight && n.strokeBottomWeight === n.strokeLeftWeight);
+    if (perSide) {
+      const [t, r, b, l] = [n.strokeTopWeight, n.strokeRightWeight, n.strokeBottomWeight, n.strokeLeftWeight];
+      if (t) out += `<rect x="0" y="0" width="${n.width}" height="${t}" fill="${col}"/>`;
+      if (b) out += `<rect x="0" y="${n.height - b}" width="${n.width}" height="${b}" fill="${col}"/>`;
+      if (l) out += `<rect x="0" y="0" width="${l}" height="${n.height}" fill="${col}"/>`;
+      if (r) out += `<rect x="${n.width - r}" y="0" width="${r}" height="${n.height}" fill="${col}"/>`;
+    } else if (n.strokeWeight > 0) {
+      const w = n.strokeWeight;
+      const dash = n.dashPattern && n.dashPattern.length ? ` stroke-dasharray="${n.dashPattern.join(' ')}"` : '';
+      out += `<rect x="${w / 2}" y="${w / 2}" width="${Math.max(0, n.width - w)}" height="${Math.max(0, n.height - w)}" rx="${Math.max(0, rx - w / 2)}" fill="none" stroke="${col}" stroke-width="${w}"${dash}/>`;
+    }
   }
   return out;
 }

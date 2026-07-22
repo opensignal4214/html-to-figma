@@ -212,7 +212,7 @@ const boxBase = {
   backgroundImage: 'none',
   backgroundSize: 'auto',
   borderTopWidth: '0px', borderRightWidth: '0px', borderBottomWidth: '0px', borderLeftWidth: '0px',
-  borderTopColor: 'rgb(0, 0, 0)', borderLeftColor: 'rgb(0, 0, 0)', borderBottomColor: 'rgb(0, 0, 0)',
+  borderTopColor: 'rgb(0, 0, 0)', borderRightColor: 'rgb(0, 0, 0)', borderLeftColor: 'rgb(0, 0, 0)', borderBottomColor: 'rgb(0, 0, 0)',
   borderTopStyle: 'none',
   borderTopLeftRadius: '0px', borderTopRightRadius: '0px',
   borderBottomRightRadius: '0px', borderBottomLeftRadius: '0px',
@@ -249,19 +249,34 @@ test('mapBoxStyle: linear-gradient captured, url() left for async fetch', () => 
   assert.equal(contain.bgScaleMode, 'FIT');
 });
 
-test('mapBoxStyle: border takes max side width, flags dashed', () => {
+test('mapBoxStyle: uniform border → single width form, flags dashed', () => {
   const st = mapBoxStyle(
     {
       ...boxBase,
-      borderTopWidth: '1px', borderBottomWidth: '3px',
+      borderTopWidth: '2px', borderRightWidth: '2px', borderBottomWidth: '2px', borderLeftWidth: '2px',
       borderTopColor: 'rgb(229, 231, 235)',
       borderTopStyle: 'dashed',
     },
     rect100,
   );
-  assert.equal(st.border.width, 3);
+  assert.equal(st.border.width, 2);
   assert.equal(st.border.dashed, true);
   assert.deepEqual(st.border.color, { r: 0.9, g: 0.91, b: 0.92, a: 1 });
+  assert.equal(st.border.top, undefined); // uniform → no per-side keys
+});
+
+test('mapBoxStyle: unequal border widths → per-side weights, color from widest side', () => {
+  const st = mapBoxStyle(
+    {
+      ...boxBase,
+      borderLeftWidth: '4px', // accent border, others 0
+      borderLeftColor: 'rgb(79, 70, 229)',
+    },
+    rect100,
+  );
+  assert.equal(st.border.width, undefined);
+  assert.deepEqual({ t: st.border.top, r: st.border.right, b: st.border.bottom, l: st.border.left }, { t: 0, r: 0, b: 0, l: 4 });
+  assert.deepEqual(st.border.color, { r: 0.31, g: 0.27, b: 0.9, a: 1 }); // the left (widest) side's color
 });
 
 test('mapBoxStyle: percentage radius resolves against min(width, height)', () => {

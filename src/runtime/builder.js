@@ -98,10 +98,26 @@ function __applyBox(node, st) {
   }
   if (st.border && st.border.color && 'strokes' in node) {
     node.strokes = [__solid(st.border.color)];
-    node.strokeWeight = st.border.width || 1;
     if ('strokeAlign' in node) node.strokeAlign = 'INSIDE';
+    var perSide = st.border.top !== undefined;
+    var refW = perSide
+      ? Math.max(st.border.top, st.border.right, st.border.bottom, st.border.left)
+      : st.border.width;
+    if (perSide) {
+      // Set a base weight first, then per-side overrides (Figma requires the
+      // individual weight props to be set after strokeWeight).
+      node.strokeWeight = refW || 1;
+      try {
+        node.strokeTopWeight = st.border.top;
+        node.strokeRightWeight = st.border.right;
+        node.strokeBottomWeight = st.border.bottom;
+        node.strokeLeftWeight = st.border.left;
+      } catch (e) { /* older API — falls back to uniform strokeWeight */ }
+    } else {
+      node.strokeWeight = st.border.width || 1;
+    }
     if (st.border.dashed && 'dashPattern' in node) {
-      node.dashPattern = [Math.max(2, st.border.width * 3), Math.max(2, st.border.width * 2)];
+      node.dashPattern = [Math.max(2, refW * 3), Math.max(2, refW * 2)];
     }
   }
   if (st.shadows && st.shadows.length && 'effects' in node) {
