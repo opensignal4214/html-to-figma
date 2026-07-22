@@ -266,9 +266,13 @@ function renderNode(n) {
   // Figma rotation is CCW-positive about the node center; SVG rotate is
   // CW-positive, so negate. Rotate about the node's own center.
   const rot = n.rotation ? ` rotate(${-n.rotation} ${n.width / 2} ${n.height / 2})` : '';
-  const blend = n.blendMode && n.blendMode !== 'NORMAL'
-    ? ` style="mix-blend-mode:${n.blendMode.toLowerCase().replace(/_/g, '-')}"`
-    : '';
+  const styleParts = [];
+  if (n.blendMode && n.blendMode !== 'NORMAL') styleParts.push(`mix-blend-mode:${n.blendMode.toLowerCase().replace(/_/g, '-')}`);
+  const layerBlur = (n.effects || []).find((e) => e.type === 'LAYER_BLUR' && e.visible !== false);
+  if (layerBlur) styleParts.push(`filter:blur(${layerBlur.radius}px)`);
+  const bgBlur = (n.effects || []).find((e) => e.type === 'BACKGROUND_BLUR' && e.visible !== false);
+  if (bgBlur) styleParts.push(`backdrop-filter:blur(${bgBlur.radius}px);-webkit-backdrop-filter:blur(${bgBlur.radius}px)`);
+  const blend = styleParts.length ? ` style="${styleParts.join(';')}"` : '';
   if (n.type === 'TEXT') {
     return opacity ? `<g${opacity}>${renderText(n)}</g>` : renderText(n);
   }

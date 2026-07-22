@@ -163,9 +163,12 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   form; baseline unchanged). Color comes from the widest side — Figma strokes
   are one paint, so per-side *colors* remain a rasterize-fallback case.
   Unit + through-mock tested; preview draws each side.
-- [ ] **4.5 Filters** (S) — `filter: blur()` → LAYER_BLUR,
-  `backdrop-filter: blur()` → BACKGROUND_BLUR, `drop-shadow()` → DROP_SHADOW;
-  other filter functions → rasterize fallback.
+- [x] **4.5 Filters** (S) — `parseFilters()` maps `filter: blur()` →
+  LAYER_BLUR, `backdrop-filter: blur()` → BACKGROUND_BLUR, `drop-shadow()` →
+  DROP_SHADOW (merged with box-shadow effects in the builder). Only
+  *unsupported* functions (grayscale/brightness/…) fall through to the 2.2
+  rasterize fallback — so blur is now editable, not flattened. Unit + through-
+  mock tested; preview renders blur/backdrop-blur; baseline unchanged.
 - [ ] **4.6 `background-repeat` tiling** (S) — → IMAGE fill
   `scaleMode: 'TILE'` with `scalingFactor` from `background-size`.
 - [x] **4.7 Blend modes** (S) — `mix-blend-mode` → node `blendMode` (BLEND_MODES map in css-map); builder + preview apply it. Unit-tested; baseline unchanged.

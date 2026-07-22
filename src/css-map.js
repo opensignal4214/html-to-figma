@@ -165,6 +165,73 @@ export function parseLinearGradient(bgImage) {
   return { stops, transform };
 }
 
+// Split a CSS filter list into { name, args } functions, respecting nested
+// parens (drop-shadow contains rgba(...)).
+function parseFilterFunctions(str) {
+  const fns = [];
+  let i = 0;
+  while (i < str.length) {
+    const m = str.slice(i).match(/^\s*([\w-]+)\(/);
+    if (!m) {
+      i++;
+      continue;
+    }
+    const name = m[1];
+    let j = i + m[0].length;
+    let depth = 1;
+    let args = '';
+    while (j < str.length && depth > 0) {
+      const ch = str[j];
+      if (ch === '(') depth++;
+      else if (ch === ')') depth--;
+      if (depth > 0) args += ch;
+      j++;
+    }
+    fns.push({ name, args: args.trim() });
+    i = j;
+  }
+  return fns;
+}
+
+/**
+ * Map CSS `filter` + `backdrop-filter` to Figma effects. blur→LAYER_BLUR,
+ * backdrop blur→BACKGROUND_BLUR, drop-shadow→DROP_SHADOW. Any other function
+ * (grayscale, brightness, …) can't be expressed → `unsupported: true`, a signal
+ * to rasterize the element instead.
+ * @returns {{ effects: object[], unsupported: boolean }}
+ */
+export function parseFilters(filter, backdropFilter) {
+  const effects = [];
+  let unsupported = false;
+  const mkShadow = (args) => {
+    const color = parseColor(args);
+    const nums = (args.replace(/rgba?\([^)]*\)/, '').match(/-?[\d.]+px/g) || []).map(parseFloat);
+    return {
+      type: 'DROP_SHADOW',
+      color: color || { r: 0, g: 0, b: 0, a: 1 },
+      offset: { x: nums[0] || 0, y: nums[1] || 0 },
+      radius: nums[2] || 0,
+      spread: 0,
+      visible: true,
+      blendMode: 'NORMAL',
+    };
+  };
+  if (filter && filter !== 'none') {
+    for (const fn of parseFilterFunctions(filter)) {
+      if (fn.name === 'blur') effects.push({ type: 'LAYER_BLUR', radius: parseFloat(fn.args) || 0, visible: true });
+      else if (fn.name === 'drop-shadow') effects.push(mkShadow(fn.args));
+      else unsupported = true; // grayscale/brightness/contrast/sepia/… — not expressible
+    }
+  }
+  if (backdropFilter && backdropFilter !== 'none') {
+    for (const fn of parseFilterFunctions(backdropFilter)) {
+      if (fn.name === 'blur') effects.push({ type: 'BACKGROUND_BLUR', radius: parseFloat(fn.args) || 0, visible: true });
+      else unsupported = true;
+    }
+  }
+  return { effects, unsupported };
+}
+
 /** '8px' → 8; '50%' → percentage of base; falsy → 0. */
 export function pxOrPercent(str, base) {
   if (!str) return 0;
@@ -431,6 +498,8 @@ export function mapBoxStyle(cs, rect) {
   if (shadows) st.shadows = shadows;
   if (cs.overflow !== 'visible') st.clip = true;
   if (cs.mixBlendMode && BLEND_MODES[cs.mixBlendMode]) st.blendMode = BLEND_MODES[cs.mixBlendMode];
+  const filters = parseFilters(cs.filter, cs.backdropFilter);
+  if (!filters.unsupported && filters.effects.length) st.filterEffects = filters.effects;
   return st;
 }
 

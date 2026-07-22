@@ -120,18 +120,23 @@ function __applyBox(node, st) {
       node.dashPattern = [Math.max(2, refW * 3), Math.max(2, refW * 2)];
     }
   }
-  if (st.shadows && st.shadows.length && 'effects' in node) {
-    node.effects = st.shadows.map(function (s) {
-      return {
-        type: s.inset ? 'INNER_SHADOW' : 'DROP_SHADOW',
-        color: { r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a },
-        offset: { x: s.x, y: s.y },
-        radius: s.blur || 0,
-        spread: s.spread || 0,
-        visible: true,
-        blendMode: 'NORMAL',
-      };
-    });
+  if ('effects' in node) {
+    var effects = [];
+    if (st.shadows && st.shadows.length) {
+      effects = st.shadows.map(function (s) {
+        return {
+          type: s.inset ? 'INNER_SHADOW' : 'DROP_SHADOW',
+          color: { r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a },
+          offset: { x: s.x, y: s.y },
+          radius: s.blur || 0,
+          spread: s.spread || 0,
+          visible: true,
+          blendMode: 'NORMAL',
+        };
+      });
+    }
+    if (st.filterEffects && st.filterEffects.length) effects = effects.concat(st.filterEffects);
+    if (effects.length) node.effects = effects;
   }
   if ('clipsContent' in node) node.clipsContent = !!st.clip;
 }

@@ -208,8 +208,11 @@ const EXTRACTOR = async ({ selector }) => {
       }
     }
     if (tag === 'progress' || tag === 'meter') return tag;
-    if (cs.filter && cs.filter !== 'none') return 'filter';
-    if (cs.backdropFilter && cs.backdropFilter !== 'none') return 'backdrop-filter';
+    // Only rasterize filters we can't express as Figma effects (grayscale,
+    // brightness, …). blur/drop-shadow/backdrop-blur map to effects (4.5).
+    if ((cs.filter && cs.filter !== 'none') || (cs.backdropFilter && cs.backdropFilter !== 'none')) {
+      if (M.parseFilters(cs.filter, cs.backdropFilter).unsupported) return 'filter';
+    }
     const tf = M.decomposeMatrix(cs.transform);
     if (tf && (Math.abs(tf.skewXDeg) > 0.5 || Math.abs(tf.scaleX - 1) > 0.01 || Math.abs(tf.scaleY - 1) > 0.01)) {
       return 'transform'; // skew / scale — pure rotation is handled elsewhere
