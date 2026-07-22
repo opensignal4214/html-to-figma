@@ -95,9 +95,18 @@ const { tree, script } = await htmlToFigma('page.html', { width: 1280 });
 | `<input>` / `<textarea>` / `<select>` | Frame + text from value/placeholder |
 | `data-figma-component` | `ComponentNode` |
 
+Architecture, the intermediate tree schema, and all CSS→Figma mapping decisions
+are documented in [docs/DESIGN.md](docs/DESIGN.md) — read it before changing the
+mapping, and follow its TDD workflow (failing unit test first).
+
 ## Testing without opening Figma
 
-Two harnesses let you validate generated scripts entirely locally:
+Three layers let you validate generated scripts entirely locally
+(`npm test` runs the first two):
+
+**0. Unit tests** — every pure CSS→Figma mapping (colors, shadows, gradients,
+flex → Auto Layout, text styles) lives in `src/css-map.js` and is pinned by
+`npm run test:unit` (`node --test`, no extra dependencies).
 
 **1. Mock-API smoke test** — executes the generated script against a strict mock
 of the Figma Plugin API (it enforces real API rules, e.g. fonts must load before
