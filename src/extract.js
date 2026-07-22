@@ -458,6 +458,20 @@ const EXTRACTOR = async ({ selector, textFidelity }) => {
     try { await document.fonts.ready; } catch { /* ignore */ }
   }
 
+  // Wait for images to finish loading before reading naturalWidth / fetching
+  // bytes — file:// image requests don't always settle by `networkidle`, which
+  // otherwise leaves intrinsic sizes at 0 and assets unfetched (seen on CI).
+  await Promise.all(
+    [...document.images].map((img) =>
+      img.complete
+        ? null
+        : new Promise((res) => {
+            img.addEventListener('load', res, { once: true });
+            img.addEventListener('error', res, { once: true });
+          }),
+    ),
+  );
+
   const rootEl = selector ? document.querySelector(selector) : null;
   if (selector && !rootEl) throw new Error(`Selector matched nothing: ${selector}`);
 

@@ -2,13 +2,13 @@
 <html><head><meta charset="utf-8"><style>
   * { margin: 0; box-sizing: border-box; }
   body { font-family: Inter, sans-serif; }
-  /* A darkening gradient overlay ON TOP of a hero image — the classic
-     two-layer background. wide.png is the bottom layer. */
+  /* A darkening gradient overlay ON TOP of a hero image (inline data URI, the
+     bottom layer) — the classic two-layer background. */
   .hero {
     width: 200px; height: 120px;
     background:
       linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.6)),
-      url("wide.png");
+      url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAKCAIAAAA7N+mxAAAAGklEQVR4nGO4o6GBB2kE3MGDGEY1j2ompBkAA2n6AR023vwAAAAASUVORK5CYII=");
     background-size: cover, cover;
     background-repeat: no-repeat, no-repeat;
   }
