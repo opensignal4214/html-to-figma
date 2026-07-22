@@ -85,10 +85,12 @@ visually identical in the preview overlay.
 > "1:1" must be a number, not a claim — and there must be a safety net for
 > anything the mapper can't express.
 
-- [ ] **2.1 Fidelity score in the preview harness** (M)
-  Pixel-diff the browser screenshot against the simulated-Figma render
-  (rasterized via the already-present Chromium), report % mismatch per
-  component, and add `--assert-fidelity <pct>` so CI fails on regressions.
+- [x] **2.1 Fidelity score in the preview harness** (M)
+  `pixelDiff()` (unit-tested pure spec) + an identical in-browser loop rasterize
+  the screenshot and simulated SVG to a shared canvas and report mismatch
+  overall and per component. Printed to the console and the preview page;
+  `--assert-fidelity <pct>` exits non-zero below threshold and now guards the
+  pricing-card in `npm run test:integration` (currently 98.6%, floor 95%).
 - [ ] **2.2 Rasterize fallback for unmappable nodes** (M)
   Any element using a feature the mapper can't express (skew, exotic filters,
   native form widgets — checkboxes, selects, sliders) gets an element

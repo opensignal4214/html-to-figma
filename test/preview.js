@@ -10,10 +10,16 @@ import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { launchBrowser } from '../src/extract.js';
 import { sizeSvg } from './preview-util.js';
+// pixel-diff.js holds the canonical, unit-tested diff spec; the harness runs an
+// identical loop inside the browser to avoid transferring full RGBA buffers.
 
-const scriptPath = process.argv[2] || 'out/figma-script.js';
-const htmlPath = process.argv[3] || 'examples/pricing-card.html';
-const outPath = process.argv[4] || 'out/preview.html';
+const argv = process.argv.slice(2);
+const flagIdx = argv.indexOf('--assert-fidelity');
+const assertFidelity = flagIdx >= 0 ? parseFloat(argv[flagIdx + 1]) : null;
+const positional = argv.filter((a, i) => !a.startsWith('--') && !(flagIdx >= 0 && i === flagIdx + 1));
+const scriptPath = positional[0] || 'out/figma-script.js';
+const htmlPath = positional[1] || 'examples/pricing-card.html';
+const outPath = positional[2] || 'out/preview.html';
 
 // ---------------------------------------------------------------- mock figma
 
@@ -271,6 +277,86 @@ async function screenshotOriginal(file, width) {
   }
 }
 
+// Absolute-positioned COMPONENT regions from the built mock tree, for
+// per-component fidelity scoring.
+function componentRegions(node, ox = 0, oy = 0, out = []) {
+  const x = ox + (node.x || 0);
+  const y = oy + (node.y || 0);
+  if (node.type === 'COMPONENT') out.push({ name: node.name, x, y, w: node.width, h: node.height });
+  for (const c of node.children || []) componentRegions(c, x, y, out);
+  return out;
+}
+
+// Rasterize the browser PNG and the simulated SVG to the same w×h canvas and
+// compute pixel mismatch — overall and per component region — inside the page
+// (avoids transferring full RGBA buffers over the bridge). Uses the same
+// tolerance semantics as the unit-tested pixelDiff().
+async function computeFidelity(pngBuffer, svgString, w, h, regions) {
+  const browser = await launchBrowser();
+  try {
+    const context = await browser.newContext({ viewport: { width: 100, height: 100 }, deviceScaleFactor: 1 });
+    const page = await context.newPage();
+    const pngUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+    const svgUrl = `data:image/svg+xml;base64,${Buffer.from(svgString).toString('base64')}`;
+    return await page.evaluate(
+      async ({ pngUrl, svgUrl, w, h, regions, tolerance }) => {
+        const load = (src) =>
+          new Promise((res, rej) => {
+            const im = new Image();
+            im.onload = () => res(im);
+            im.onerror = rej;
+            im.src = src;
+          });
+        const [a, b] = await Promise.all([load(pngUrl), load(svgUrl)]);
+        const raster = (img) => {
+          const c = document.createElement('canvas');
+          c.width = w;
+          c.height = h;
+          const cx = c.getContext('2d');
+          cx.fillStyle = '#fff';
+          cx.fillRect(0, 0, w, h);
+          cx.drawImage(img, 0, 0);
+          return cx.getImageData(0, 0, w, h).data;
+        };
+        const da = raster(a);
+        const db = raster(b);
+        const diffRegion = (rx, ry, rw, rh) => {
+          let diff = 0;
+          let total = 0;
+          const x1 = Math.max(0, Math.floor(rx));
+          const y1 = Math.max(0, Math.floor(ry));
+          const x2 = Math.min(w, Math.ceil(rx + rw));
+          const y2 = Math.min(h, Math.ceil(ry + rh));
+          for (let y = y1; y < y2; y++) {
+            for (let x = x1; x < x2; x++) {
+              const i = (y * w + x) * 4;
+              const aa = da[i + 3] / 255;
+              const ba = db[i + 3] / 255;
+              let differs = false;
+              for (let c = 0; c < 3; c++) {
+                if (Math.abs(da[i + c] * aa - db[i + c] * ba) > tolerance) {
+                  differs = true;
+                  break;
+                }
+              }
+              if (differs) diff++;
+              total++;
+            }
+          }
+          return { diff, total, fidelity: total ? 1 - diff / total : 1 };
+        };
+        return {
+          overall: diffRegion(0, 0, w, h),
+          perComponent: regions.map((r) => ({ name: r.name, ...diffRegion(r.x, r.y, r.w, r.h) })),
+        };
+      },
+      { pngUrl, svgUrl, w, h, regions, tolerance: 16 },
+    );
+  } finally {
+    await browser.close();
+  }
+}
+
 async function run() {
   const source = fs.readFileSync(scriptPath, 'utf8');
   const context = vm.createContext({ figma, console, Uint8Array, Math, JSON, String, Array, Object, Promise });
@@ -296,6 +382,15 @@ async function run() {
   const png = await screenshotOriginal(htmlPath, w);
   const pngUrl = `data:image/png;base64,${png.toString('base64')}`;
 
+  const regions = componentRegions(root);
+  const fidelity = await computeFidelity(png, svg, w, h, regions);
+  const pct = (f) => `${(f * 100).toFixed(1)}%`;
+  console.log(`\nFidelity (browser vs simulated Figma): ${pct(fidelity.overall.fidelity)} overall`);
+  for (const c of fidelity.perComponent) console.log(`  ${pct(c.fidelity).padStart(6)}  ${c.name}`);
+  const fidelityRows = fidelity.perComponent
+    .map((c) => `<tr><td>${esc(c.name)}</td><td style="text-align:right">${pct(c.fidelity)}</td></tr>`)
+    .join('');
+
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>html-to-figma preview</title>
 <style>
@@ -312,6 +407,11 @@ async function run() {
 </style></head><body>
 <h1>html-to-figma preview — ${esc(path.basename(htmlPath))}</h1>
 <p>Left: real browser render. Right: simulated Figma output (mock plugin API + simulated Auto Layout). If they match, the generated script is faithful.</p>
+<div class="pane" style="margin-bottom:16px">
+  <h2>Fidelity — pixel match vs the browser render</h2>
+  <p style="font-size:22px;margin:4px 0;font-weight:700">${pct(fidelity.overall.fidelity)} <span style="font-size:13px;font-weight:400;color:#777">overall</span></p>
+  <table style="font-size:13px;border-collapse:collapse">${fidelityRows}</table>
+</div>
 <div class="cols">
   <div class="pane"><h2>Browser render</h2><img src="${pngUrl}" width="${w}"></div>
   <div class="pane"><h2>Simulated Figma output</h2>${svg}</div>
@@ -329,6 +429,15 @@ async function run() {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, html);
   console.log(`Preview written to ${outPath} — open it in any browser.`);
+
+  if (assertFidelity !== null) {
+    const got = fidelity.overall.fidelity * 100;
+    if (got < assertFidelity) {
+      console.error(`\nFidelity ${got.toFixed(1)}% is below the required ${assertFidelity}%`);
+      process.exit(1);
+    }
+    console.log(`\nFidelity ${got.toFixed(1)}% meets the required ${assertFidelity}%`);
+  }
 }
 
 run().catch((err) => {
