@@ -172,6 +172,9 @@ async function __createText(n, ctx) {
   }
   node.textAutoResize = 'NONE';
   node.resize(Math.max(n.rect.width, 1), Math.max(n.rect.height, 1));
+  if (t.truncate && 'textTruncation' in node) {
+    try { node.textTruncation = 'ENDING'; } catch (e) { /* older API */ }
+  }
   node.name = n.name || (t.characters || 'text').slice(0, 40);
   return node;
 }

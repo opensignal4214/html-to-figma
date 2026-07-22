@@ -85,6 +85,7 @@ function makeText() {
   node.textDecoration = 'NONE';
   node.textCase = 'ORIGINAL';
   node.textAutoResize = 'NONE';
+  node.textTruncation = 'DISABLED';
   return node;
 }
 

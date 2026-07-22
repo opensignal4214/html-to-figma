@@ -457,5 +457,6 @@ export function mapTextStyle(cs) {
   };
   const shadows = parseShadows(cs.textShadow);
   if (shadows) style.shadows = shadows; // only when present, so untouched text stays lean
+  if (cs.textOverflow === 'ellipsis') style.truncate = true;
   return style;
 }

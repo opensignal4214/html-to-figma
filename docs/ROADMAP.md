@@ -130,7 +130,10 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   For brand fonts Figma can't load: render each text run to SVG paths in the
   browser and emit vectors — pixel-perfect, non-editable, per-node opt-in via
   the rasterize-fallback flagging from 2.2.
-- [ ] **3.4 `text-overflow: ellipsis` → `textTruncation`** (S)
+- [x] **3.4 `text-overflow: ellipsis` → `textTruncation`** (S)
+  mapTextStyle sets a `truncate` flag on ellipsis; builder sets
+  `textTruncation: 'ENDING'`; preview renders CSS ellipsis. Unit-tested;
+  baseline unchanged.
 - [x] **3.5 `text-shadow` → DROP_SHADOW on TextNodes** (S)
   `mapTextStyle` parses `text-shadow` (reusing `parseShadows`) into the text
   style only when present; builder emits DROP_SHADOW effects on the TextNode;

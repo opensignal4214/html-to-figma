@@ -76,6 +76,7 @@ function makeNode(type) {
       textDecoration: 'NONE',
       textCase: 'ORIGINAL',
       textAutoResize: 'NONE',
+      textTruncation: 'DISABLED',
     });
   }
   return node;
@@ -229,6 +230,7 @@ function renderText(n) {
   const decoration = n.textDecoration === 'UNDERLINE' ? 'underline' : n.textDecoration === 'STRIKETHROUGH' ? 'line-through' : 'none';
   const transform = { UPPER: 'uppercase', LOWER: 'lowercase', TITLE: 'capitalize' }[n.textCase] || 'none';
   const align = { LEFT: 'left', CENTER: 'center', RIGHT: 'right', JUSTIFIED: 'justify' }[n.textAlignHorizontal] || 'left';
+  const truncate = n.textTruncation === 'ENDING' ? 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' : '';
   const textShadow = (n.effects || [])
     .filter((e) => e.type === 'DROP_SHADOW' && e.visible !== false)
     .map((e) => `${e.offset.x}px ${e.offset.y}px ${e.radius}px ${rgba(e.color)}`)
@@ -238,6 +240,7 @@ function renderText(n) {
     (italic ? 'font-style:italic;' : '') +
     `color:${fill};line-height:${lineHeight};letter-spacing:${letterSpacing};` +
     `text-decoration:${decoration};text-transform:${transform};text-align:${align};margin:0;` +
+    truncate +
     (textShadow ? `text-shadow:${textShadow};` : '');
   return (
     `<foreignObject x="${n.x}" y="${n.y}" width="${Math.ceil(n.width) + 2}" height="${Math.ceil(n.height) + 2}">` +

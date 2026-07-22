@@ -328,6 +328,12 @@ test('mapTextStyle: weight, italic, metrics, color', () => {
   assert.deepEqual(t.color, { r: 1, g: 1, b: 1, a: 1 });
 });
 
+test('mapTextStyle: text-overflow ellipsis → truncate flag; absent otherwise', () => {
+  assert.equal(mapTextStyle(textBase).truncate, undefined);
+  assert.equal(mapTextStyle({ ...textBase, textOverflow: 'ellipsis' }).truncate, true);
+  assert.equal(mapTextStyle({ ...textBase, textOverflow: 'clip' }).truncate, undefined);
+});
+
 test('mapTextStyle: no text-shadow → no shadows key (keeps tree lean)', () => {
   assert.equal(mapTextStyle(textBase).shadows, undefined);
 });
