@@ -48,6 +48,17 @@ test('text-fidelity exact: wrapping text splits into one node per line', async (
   for (const l of lines) assert.ok(!/\n/.test(l.text.characters));
 });
 
+test('inline HTML: extract from a raw fragment string (no file on disk)', async () => {
+  const tree = await extractTree(null, {
+    html: '<div data-figma-component="Snippet" style="font-family:Inter"><p>hello from stdin</p></div>',
+    width: 400,
+    height: 200,
+  });
+  const snip = find(tree, (n) => n.component === 'Snippet');
+  assert.ok(snip, 'component from fragment');
+  assert.equal(firstText(snip), 'hello from stdin');
+});
+
 test('flex row-reverse: children emitted in reversed (visual) order', async () => {
   const tree = await extractTree(fixture('reverse.html'), { width: 400, height: 200 });
   const bar = find(tree, (n) => n.component === 'Bar');

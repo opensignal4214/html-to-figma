@@ -287,8 +287,11 @@ sheet's components doesn't break the page recreation.
   image is embedded once instead of N times (verified: 3 identical imgs → 1
   blob, 3 refs). Generation-only — `tree.json` and the baseline are byte-
   identical. Unit + through-mock tested.
-- [ ] **8.2 HTML fragment / stdin input** (S) — accept snippets without a full
-  `<html>` document (auto-wrap) and `--stdin`, matching the "drop HTML" flow.
+- [x] **8.2 HTML fragment / stdin input** (S) — `extractTree(null, { html })`
+  renders raw HTML via `page.setContent` (a bare fragment is auto-wrapped);
+  CLI `--stdin` reads it from stdin. Matches the "drop HTML" flow. `opts.baseUrl`
+  resolves relative links if needed. e2e + stdin smoke tested; goto path
+  unchanged so baseline is unaffected. Plan: docs/plans/8.2-stdin-fragment.md.
 - [ ] **8.3 Companion plugin with paste-box UI** (M) — one installable plugin
   that accepts the tree payload, replacing per-page dev-plugin imports and
   sidestepping script-size limits for image-heavy pages.

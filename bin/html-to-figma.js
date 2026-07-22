@@ -9,6 +9,7 @@ html-to-figma — turn HTML into a script that rebuilds it in Figma as component
 
 Usage:
   html-to-figma <input.html | url> [options]
+  html-to-figma --stdin [options]      # read HTML/fragment from stdin
 
 Options:
   -o, --out <dir>        Output directory (default: ./figma-out)
@@ -53,6 +54,7 @@ function parseArgs(argv) {
       case '--name': opts.name = argv[++i]; break;
       case '--no-plugin': opts.plugin = false; break;
       case '--no-tree': opts.tree = false; break;
+      case '--stdin': opts.stdin = true; break;
       default:
         if (a.startsWith('-')) {
           console.error(`Unknown option: ${a}\n${USAGE}`);
@@ -61,8 +63,13 @@ function parseArgs(argv) {
         positional.push(a);
     }
   }
-  if (positional.length !== 1) {
-    console.error(`Expected exactly one input file or URL.\n${USAGE}`);
+  if (opts.stdin) {
+    if (positional.length) {
+      console.error(`Do not pass an input file/URL with --stdin.\n${USAGE}`);
+      process.exit(1);
+    }
+  } else if (positional.length !== 1) {
+    console.error(`Expected exactly one input file or URL (or --stdin).\n${USAGE}`);
     process.exit(1);
   }
   opts.input = positional[0];
@@ -81,9 +88,26 @@ function listComponents(node, out = []) {
   return out;
 }
 
+function readStdin() {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => (data += chunk));
+    process.stdin.on('end', () => resolve(data));
+    process.stdin.on('error', reject);
+  });
+}
+
 async function run() {
   const opts = parseArgs(process.argv.slice(2));
-  console.log(`Rendering ${opts.input} (${opts.width}x${opts.height})...`);
+  if (opts.stdin) {
+    opts.html = await readStdin();
+    if (!opts.html.trim()) {
+      console.error('Error: --stdin given but no HTML received on stdin.');
+      process.exit(1);
+    }
+  }
+  console.log(`Rendering ${opts.stdin ? 'stdin HTML' : opts.input} (${opts.width}x${opts.height})...`);
   const tree = await extractTree(opts.input, opts);
 
   const components = listComponents(tree);

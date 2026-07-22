@@ -527,10 +527,20 @@ export async function extractTree(input, opts = {}) {
       bypassCSP: true, // strict-CSP sites must not block the css-map injection
     });
     const page = await context.newPage();
-    const url = toUrl(input);
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }).catch(async () => {
-      await page.goto(url, { waitUntil: 'load', timeout: 30000 });
-    });
+    if (opts.html != null) {
+      // Raw HTML / fragment (e.g. from stdin). The browser wraps a bare
+      // fragment in html/body; relative asset URLs won't resolve (use absolute
+      // or data: URIs). opts.baseUrl sets a base for relative links if given.
+      if (opts.baseUrl) await page.goto(opts.baseUrl).catch(() => {});
+      await page.setContent(opts.html, { waitUntil: 'networkidle', timeout: 30000 }).catch(async () => {
+        await page.setContent(opts.html, { waitUntil: 'load', timeout: 30000 });
+      });
+    } else {
+      const url = toUrl(input);
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }).catch(async () => {
+        await page.goto(url, { waitUntil: 'load', timeout: 30000 });
+      });
+    }
     await page.addScriptTag({ content: cssMapBrowserSource() });
     const tree = await page.evaluate(EXTRACTOR, { selector: opts.selector || null, textFidelity: opts.textFidelity || 'editable' });
     await rasterizeFlagged(page, tree);
