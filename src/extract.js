@@ -196,6 +196,27 @@ const EXTRACTOR = async ({ selector }) => {
     node.rotation = round(-tf.rotationDeg); // Figma: positive = counterclockwise
   };
 
+  // Features the tree/builder can't express faithfully → rasterize the element
+  // (screenshot taken Node-side after this walk). Returns a short reason or null.
+  let rasterCounter = 0;
+  const rasterReason = (el, cs) => {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'input') {
+      const t = (el.getAttribute('type') || 'text').toLowerCase();
+      if (['checkbox', 'radio', 'range', 'color', 'file', 'date', 'time', 'datetime-local', 'month', 'week'].includes(t)) {
+        return `input[${t}]`;
+      }
+    }
+    if (tag === 'progress' || tag === 'meter') return tag;
+    if (cs.filter && cs.filter !== 'none') return 'filter';
+    if (cs.backdropFilter && cs.backdropFilter !== 'none') return 'backdrop-filter';
+    const tf = M.decomposeMatrix(cs.transform);
+    if (tf && (Math.abs(tf.skewXDeg) > 0.5 || Math.abs(tf.scaleX - 1) > 0.01 || Math.abs(tf.scaleY - 1) > 0.01)) {
+      return 'transform'; // skew / scale — pure rotation is handled elsewhere
+    }
+    return null;
+  };
+
   const SKIP_TAGS = new Set(['script', 'style', 'link', 'meta', 'noscript', 'template', 'head', 'title', 'br', 'wbr', 'source', 'track', 'iframe']);
 
   const walk = async (el) => {
@@ -207,6 +228,22 @@ const EXTRACTOR = async ({ selector }) => {
     if (rect.width < 0.5 && rect.height < 0.5) return null;
 
     const abs = ['absolute', 'fixed', 'sticky'].includes(cs.position);
+
+    // Unmappable feature → emit a raster placeholder; the element is screenshot
+    // Node-side after this walk and the bytes are filled into image.base64.
+    const reason = rasterReason(el, cs);
+    if (reason) {
+      const id = rasterCounter++;
+      el.setAttribute('data-h2f-raster', String(id));
+      return {
+        type: 'IMAGE',
+        name: `[raster] ${nodeName(el)} (${reason})`,
+        rect: rr(rect),
+        abs,
+        style: M.mapBoxStyle(cs, rect),
+        rasterId: id,
+      };
+    }
 
     if (tag === 'svg') {
       const svgNode = { type: 'SVG', name: nodeName(el), rect: rr(rect), svg: el.outerHTML, abs, style: M.mapBoxStyle(cs, rect) };
@@ -408,8 +445,29 @@ export async function extractTree(input, opts = {}) {
     });
     await page.addScriptTag({ content: cssMapBrowserSource() });
     const tree = await page.evaluate(EXTRACTOR, { selector: opts.selector || null });
+    await rasterizeFlagged(page, tree);
     return markComponents(tree);
   } finally {
     await browser.close();
+  }
+}
+
+/** Screenshot each element the walk flagged for rasterization and inline it. */
+async function rasterizeFlagged(page, tree) {
+  const pending = [];
+  const collect = (node) => {
+    if (node.rasterId !== undefined) pending.push(node);
+    for (const c of node.children || []) collect(c);
+  };
+  collect(tree);
+  for (const node of pending) {
+    try {
+      const el = page.locator(`[data-h2f-raster="${node.rasterId}"]`);
+      const buf = await el.screenshot({ timeout: 5000 });
+      node.image = { base64: buf.toString('base64'), scaleMode: 'FILL' };
+    } catch {
+      // Screenshot failed (detached/offscreen) — leave as a gray placeholder.
+    }
+    delete node.rasterId;
   }
 }

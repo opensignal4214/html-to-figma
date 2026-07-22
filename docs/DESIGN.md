@@ -120,7 +120,9 @@ decoration, case }`.
 ### `IMAGE` / `SVG` extras
 
 `IMAGE.image`: `{ base64, scaleMode: 'FILL'|'FIT'|'CROP', crop? }` (missing →
-gray placeholder). `crop` is a normalized `{x,y,w,h}` sub-rectangle present
+gray placeholder). Nodes named `[raster] …` are screenshot fallbacks for
+elements the mapper can't express (form controls, filters, skew/scale) — the
+walk flags them and a Node-side post-pass in `extractTree` inlines the bytes. `crop` is a normalized `{x,y,w,h}` sub-rectangle present
 only for off-center `object-fit: cover`; the builder turns it into a CROP
 `imageTransform`. `SVG.svg`: raw markup, rebuilt with
 `figma.createNodeFromSvg`.

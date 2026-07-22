@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  * { margin: 0; box-sizing: border-box; }
+  body { font-family: Inter, sans-serif; padding: 20px; }
+  .row { display: flex; gap: 16px; align-items: center; }
+  .blurred { width: 80px; height: 40px; background: #4f46e5; filter: blur(3px); }
+  .skewed { width: 80px; height: 40px; background: #10b981; transform: skewX(15deg); }
+</style></head><body>
+  <div class="row" data-figma-component="Controls">
+    <input type="checkbox" checked>
+    <input type="radio" checked>
+    <progress value="0.6"></progress>
+    <div class="blurred"></div>
+    <div class="skewed"></div>
+  </div>
+</body></html>

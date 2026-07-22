@@ -91,12 +91,14 @@ visually identical in the preview overlay.
   overall and per component. Printed to the console and the preview page;
   `--assert-fidelity <pct>` exits non-zero below threshold and now guards the
   pricing-card in `npm run test:integration` (currently 98.6%, floor 95%).
-- [ ] **2.2 Rasterize fallback for unmappable nodes** (M)
-  Any element using a feature the mapper can't express (skew, exotic filters,
-  native form widgets — checkboxes, selects, sliders) gets an element
-  screenshot via Playwright embedded as an image fill, flagged in the layer
-  name (`[raster]`). This is the universal net: *every* HTML construct then
-  has a 1:1 representation, editable or not.
+- [x] **2.2 Rasterize fallback for unmappable nodes** (M)
+  `rasterReason()` flags elements the mapper can't express — native form
+  controls (checkbox/radio/range/color/file/date/progress/meter), CSS
+  `filter`/`backdrop-filter`, and skew/scale transforms — and the walk emits a
+  `[raster]` IMAGE placeholder. A Node-side post-pass screenshots each flagged
+  element via Playwright and inlines the bytes. Every HTML construct now has a
+  1:1 representation, editable or not. Unit-covered via e2e (5-control
+  fixture); pricing-card baseline unchanged.
 - [ ] **2.3 True-Figma verification loop (optional, needs a token)** (M)
   After running the plugin in Figma, export the created node as PNG via the
   REST API (read-only export is supported) and pixel-diff against the browser

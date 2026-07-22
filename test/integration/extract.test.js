@@ -31,6 +31,26 @@ test('z-index: children emitted in back-to-front paint order, not DOM order', as
   assert.deepEqual(order, ['Behind', 'Back', 'Front']);
 });
 
+test('rasterize fallback: unmappable elements become flagged image captures', async () => {
+  const tree = await extractTree(fixture('raster.html'), { width: 400, height: 200 });
+  const rasters = [];
+  const collect = (n) => {
+    if (/^\[raster\]/.test(n.name || '')) rasters.push(n);
+    for (const c of n.children || []) collect(c);
+  };
+  collect(tree);
+  // checkbox, radio, progress, filtered div, skewed div — all five.
+  assert.equal(rasters.length, 5, `expected 5 raster nodes, got ${rasters.length}`);
+  for (const r of rasters) {
+    assert.equal(r.type, 'IMAGE');
+    assert.ok(r.image && r.image.base64 && r.image.base64.length > 50, `${r.name} has image bytes`);
+    assert.equal(r.rasterId, undefined, 'rasterId cleaned up');
+  }
+  assert.ok(rasters.some((r) => r.name.includes('input[checkbox]')));
+  assert.ok(rasters.some((r) => r.name.includes('filter')));
+  assert.ok(rasters.some((r) => r.name.includes('transform')));
+});
+
 test('transforms: rotated leaf boxes captured at untransformed size + angle', async () => {
   const tree = await extractTree(fixture('rotate.html'), { width: 400, height: 300 });
   const card = find(tree, (n) => (n.name || '').includes('card'));
