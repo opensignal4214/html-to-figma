@@ -158,7 +158,15 @@ Three layers, cheapest first — none require the Figma app:
    browser render. Approximates Figma's engine; final verification of a
    component library still deserves one run in Figma (Scripter is fastest).
 
-### Workflow: TDD
+### Workflow: plan-first, then TDD
+
+**Both steps are mandatory for any non-trivial change** (see the repo-root
+`CLAUDE.md`). A genuinely low-complexity quick fix (typo, one-liner, doc tweak)
+may skip the plan doc — but never skips TDD.
+
+0. **Write a plan doc** at `docs/plans/<item>.md` — problem, design, schema/
+   interface changes, TDD test plan, risks — and get sign-off **before** any
+   code. When unsure if something needs a plan, write the plan.
 
 For any behavior change or new mapping (e.g. CSS Grid support):
 
