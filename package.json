@@ -12,7 +12,8 @@
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "node --test \"test/unit/*.test.js\"",
     "test:integration": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/mock-figma-run.js out/figma-script.js && node test/mock-figma-run.js out/figma-plugin/code.js",
-    "preview": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/preview.js out/figma-script.js examples/pricing-card.html out/preview.html"
+    "preview": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/preview.js out/figma-script.js examples/pricing-card.html out/preview.html",
+    "check": "node test/skill-eval/grade.js"
   },
   "engines": {
     "node": ">=18"

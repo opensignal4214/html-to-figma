@@ -69,6 +69,22 @@ Add `data-figma-component` to any element (the value becomes the component name)
 If nothing is marked, each top-level section of the page automatically becomes a
 component.
 
+### Generating the HTML with Claude
+
+This repo ships a project skill, `.claude/skills/figma-ready-html/`, that any
+Claude Code session in this repo picks up automatically. It makes Claude agree
+the component breakdown with you before writing HTML, mark exactly that
+inventory, stay inside the converter's supported CSS, and verify its output by
+running the converter before delivering. In skill evals it took generated HTML
+from 88% to 100% on the objective figma-readiness checks — baselines' most
+common mistake (nesting component marks) is a rule only the skill teaches.
+
+To check any HTML by hand (Claude-generated or not):
+
+```bash
+node test/skill-eval/grade.js page.html   # exit code = number of failed checks
+```
+
 ### Programmatic API
 
 ```js

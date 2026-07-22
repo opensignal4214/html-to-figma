@@ -161,6 +161,10 @@ For any behavior change or new mapping (e.g. CSS Grid support):
 3. Run `npm test` (unit + integration) and, for layout-affecting changes,
    `npm run preview` and eyeball the overlay.
 4. Update the schema/mapping tables in this document in the same commit.
+5. If the change alters supported CSS or marking semantics, update
+   `.claude/skills/figma-ready-html/SKILL.md` in the same commit too — the
+   skill's "avoid" lists mirror the mapping tables, and a stale skill actively
+   generates wrong HTML (ROADMAP 10.3).
 
 The extraction walker itself (DOM traversal) is covered by the integration
 layers; keep new logic out of the walker and inside `css-map.js` where it is

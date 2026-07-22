@@ -50,6 +50,11 @@ three-layer local test harness (unit / mock-API / visual preview).
 - [ ] **1.5 Image crop precision** (S)
   `object-position` / `background-position` offsets → CROP-mode image fill
   with exact `imageTransform`, instead of today's center-crop FILL.
+- [ ] **1.6 Text line-box capture** (S)
+  Range-based text rects are *tight* bounds — smaller than the CSS line box
+  when line-height is generous — so stacked text drifts a few px (found by a
+  skill-eval agent: ~8px on a testimonial card). Capture line-box-height
+  rects (pad tight bounds to the computed line height) instead.
 
 **Exit criteria:** an example page with overlapping z-indexed elements, a
 rotated card, native list bullets, and an off-center `cover` image round-trips
@@ -75,6 +80,11 @@ visually identical in the preview overlay.
   REST API (read-only export is supported) and pixel-diff against the browser
   screenshot — closes the loop against the real Figma renderer instead of our
   simulation.
+
+- [ ] **2.4 Preview: size raw SVG embeds** (S)
+  The simulated render embeds SVG markup verbatim; an SVG without explicit
+  `width`/`height` attributes renders at viewport size (found by a skill-eval
+  agent). Scale embedded SVGs to the node's rect in the preview renderer.
 
 **Exit criteria:** `npm run preview` prints a fidelity % for the example and
 CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
@@ -226,6 +236,41 @@ sheet's components doesn't break the page recreation.
 - [ ] **9.3 Watch mode** (S) — `--watch` re-extracts on file change.
 - [ ] **9.4 Config file** (S) — widths, selectors, naming rules, font
   mappings in `htmltofigma.config.json`.
+
+## Phase 10 — Guidance & guardrails for HTML authors
+
+> The `figma-ready-html` skill (`.claude/skills/`) teaches Claude to author
+> convertible HTML; skill evals showed baselines nest component marks 3 times
+> out of 4 even after reading the docs. These items turn that guidance into
+> tool-enforced guardrails — including for authors not using Claude at all.
+
+- [x] **10.1a Standalone figma-readiness checker** (S) — shipped as
+  `test/skill-eval/grade.js`: runs the converter + mock harness on an HTML
+  file and reports the objective checks (marking present/named/non-nested,
+  flexbox-not-grid, no transforms/pseudo-content, safe fonts, script executes).
+  Exit code = failed checks.
+- [ ] **10.1b `html-to-figma lint` command** (S)
+  Promote the checker to a first-class CLI subcommand with per-element
+  locations in warnings and a `--strict` mode for CI.
+- [ ] **10.2 Nested-mark handling at extraction** (S)
+  Until instances ship (Phase 7), nested `data-figma-component` marks emit an
+  extraction warning and keep only the outermost mark, instead of generating
+  component-inside-component output Figma may reject. The single most common
+  authoring mistake observed in evals.
+- [ ] **10.3 Skill/docs sync rule** (process)
+  Any phase that changes supported CSS or marking semantics must update
+  `.claude/skills/figma-ready-html/SKILL.md` (its "avoid" lists and marking
+  rules) in the same commit, alongside the DESIGN.md tables — e.g. Phase 5.6
+  removes "avoid CSS Grid", Phase 7 removes "don't nest marks". A stale skill
+  actively generates wrong HTML.
+- [ ] **10.4 Skill distribution** (S)
+  Package the skill as a `.skill` file / document installation for designers
+  using Claude outside this repo, so the generation guidance travels with the
+  tool.
+- [ ] **10.5 Skill eval automation** (M)
+  `npm run eval:skill` re-runs the eval prompts through headless agents and
+  grades them with 10.1a, so skill regressions are caught like code
+  regressions.
 
 ---
 
