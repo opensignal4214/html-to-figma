@@ -432,6 +432,16 @@ test('mapTextStyle: text-shadow parsed into shadow effects', () => {
   assert.deepEqual(t.shadows[0], { x: 1, y: 2, blur: 3, spread: 0, inset: false, color: { r: 0, g: 0, b: 0, a: 0.5 } });
 });
 
+test('mapTextStyle: logical alignment is direction-aware (RTL flips start/end)', () => {
+  assert.equal(mapTextStyle({ ...textBase, textAlign: 'start' }).align, 'LEFT'); // ltr default
+  assert.equal(mapTextStyle({ ...textBase, textAlign: 'start', direction: 'rtl' }).align, 'RIGHT');
+  assert.equal(mapTextStyle({ ...textBase, textAlign: 'end', direction: 'rtl' }).align, 'LEFT');
+  assert.equal(mapTextStyle({ ...textBase, textAlign: 'end' }).align, 'RIGHT'); // ltr
+  // explicit sides ignore direction
+  assert.equal(mapTextStyle({ ...textBase, textAlign: 'right', direction: 'rtl' }).align, 'RIGHT');
+  assert.equal(mapTextStyle({ ...textBase, textAlign: 'left', direction: 'rtl' }).align, 'LEFT');
+});
+
 test('mapTextStyle: align, decoration, transform keywords', () => {
   const t = mapTextStyle({
     ...textBase,

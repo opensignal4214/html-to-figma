@@ -146,8 +146,12 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   `mapTextStyle` parses `text-shadow` (reusing `parseShadows`) into the text
   style only when present; builder emits DROP_SHADOW effects on the TextNode;
   preview renders CSS text-shadow. Unit-tested; baseline unchanged.
-- [ ] **3.6 RTL / `direction` support** (M)
-  Mirror alignment mapping and Auto Layout ordering under `direction: rtl`.
+- [~] **3.6 RTL — text alignment done; flex-order deferred** (M)
+  `alignFor()` resolves logical `start`/`end` by writing direction (RTL start =
+  right), fixing RTL text aligning to the wrong side. LTR output unchanged
+  (baseline identical). **Deferred**: RTL Auto Layout order flipping (Figma's
+  primary axis is always LTR, so it needs child reversal + primaryAlign flip and
+  interacts with `*-reverse`) — tracked as a follow-up. Plan: docs/plans/3.6-rtl.md.
 
 **Exit criteria:** a page using a Google font + a fake brand font reaches
 ≥99% fidelity score in `exact` mode and reports the fallback clearly.

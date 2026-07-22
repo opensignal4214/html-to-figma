@@ -29,8 +29,17 @@ const ALIGN_COUNTER = {
   baseline: 'BASELINE',
 };
 
-const TEXT_ALIGN = { left: 'LEFT', start: 'LEFT', center: 'CENTER', right: 'RIGHT', end: 'RIGHT', justify: 'JUSTIFIED' };
+const TEXT_ALIGN = { left: 'LEFT', center: 'CENTER', right: 'RIGHT', justify: 'JUSTIFIED' };
 const TEXT_CASE = { uppercase: 'UPPER', lowercase: 'LOWER', capitalize: 'TITLE' };
+
+// Resolve text-align to a physical Figma alignment. The logical keywords
+// start/end depend on writing direction: in RTL, start = right, end = left.
+function alignFor(textAlign, direction) {
+  const rtl = direction === 'rtl';
+  if (textAlign === 'start') return rtl ? 'RIGHT' : 'LEFT';
+  if (textAlign === 'end') return rtl ? 'LEFT' : 'RIGHT';
+  return TEXT_ALIGN[textAlign] || 'LEFT';
+}
 
 /** 'rgb(a)' string → {r,g,b,a} in 0..1, or null for transparent/invalid. */
 export function parseColor(str) {
@@ -605,7 +614,7 @@ export function mapTextStyle(cs) {
     lineHeightPx: cs.lineHeight === 'normal' ? null : round(parseFloat(cs.lineHeight) || 0) || null,
     letterSpacing: cs.letterSpacing === 'normal' ? 0 : round(parseFloat(cs.letterSpacing) || 0),
     color: parseColor(cs.color) || { r: 0, g: 0, b: 0, a: 1 },
-    align: TEXT_ALIGN[cs.textAlign] || 'LEFT',
+    align: alignFor(cs.textAlign, cs.direction),
     decoration: decorationLine.includes('underline')
       ? 'UNDERLINE'
       : decorationLine.includes('line-through')
