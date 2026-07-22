@@ -242,6 +242,60 @@ export function objectFitCrop(container, intrinsic, fit, posX, posY) {
   return { scaleMode: 'CROP', crop };
 }
 
+/**
+ * Decompose a computed CSS `transform` (matrix()/matrix3d()/none) into its 2D
+ * parts. Returns null for `none` or the identity (so untransformed elements are
+ * unchanged), else `{ rotationDeg, scaleX, scaleY, skewXDeg, translateX,
+ * translateY }`. rotationDeg is the CSS clockwise angle (screen space);
+ * matrix3d uses only the 2D-relevant components (full 3D is not modeled).
+ */
+export function decomposeMatrix(transform) {
+  if (!transform || transform === 'none') return null;
+  const open = transform.indexOf('(');
+  const inner = open >= 0 ? transform.slice(open + 1) : transform;
+  const nums = (inner.match(/-?[\d.eE+]+/g) || []).map(Number);
+  let a, b, c, d, e, f;
+  if (transform.startsWith('matrix3d')) {
+    if (nums.length < 16) return null;
+    [a, b] = [nums[0], nums[1]];
+    [c, d] = [nums[4], nums[5]];
+    [e, f] = [nums[12], nums[13]];
+  } else {
+    if (nums.length < 6) return null;
+    [a, b, c, d, e, f] = nums;
+  }
+
+  const isIdentity = a === 1 && b === 0 && c === 0 && d === 1 && e === 0 && f === 0;
+  if (isIdentity) return null;
+
+  const deg = (rad) => round((rad * 180) / Math.PI);
+  let scaleX = Math.sqrt(a * a + b * b);
+  // Normalize the first column, extract shear, then the second column's scale.
+  let na = scaleX ? a / scaleX : 0;
+  let nb = scaleX ? b / scaleX : 0;
+  let shear = na * c + nb * d;
+  let c2 = c - na * shear;
+  let d2 = d - nb * shear;
+  let scaleY = Math.sqrt(c2 * c2 + d2 * d2);
+  if (scaleY) shear /= scaleY;
+  // Flip correction: negative determinant means one axis is mirrored.
+  if (a * d - b * c < 0) {
+    na = -na;
+    nb = -nb;
+    scaleX = -scaleX;
+  }
+  const rotationDeg = deg(Math.atan2(nb, na));
+  const skewXDeg = deg(Math.atan(shear));
+  return {
+    rotationDeg,
+    scaleX: round(scaleX),
+    scaleY: round(scaleY),
+    skewXDeg,
+    translateX: round(e),
+    translateY: round(f),
+  };
+}
+
 /** Roman numeral for 1..3999, else the number as a string. */
 export function romanNumeral(n) {
   if (!Number.isInteger(n) || n < 1 || n > 3999) return String(n);

@@ -177,6 +177,25 @@ const EXTRACTOR = async ({ selector }) => {
     };
   };
 
+  // Replace a leaf node's screen-space AABB rect with its untransformed box +
+  // rotation, so a rotated image/icon/box comes through the right size and
+  // angle instead of an oversized unrotated frame. Only safe for leaves —
+  // nested content under rotation needs local-space math we don't do yet.
+  const applyLeafRotation = (node, el, cs) => {
+    const tf = M.decomposeMatrix(cs.transform);
+    if (!tf || Math.abs(tf.rotationDeg) < 0.01) return;
+    const offW = el.offsetWidth || node.rect.width;
+    const offH = el.offsetHeight || node.rect.height;
+    const bb = el.getBoundingClientRect();
+    node.rect = {
+      x: round(bb.left + bb.width / 2 + window.scrollX - offW / 2),
+      y: round(bb.top + bb.height / 2 + window.scrollY - offH / 2),
+      width: round(offW),
+      height: round(offH),
+    };
+    node.rotation = round(-tf.rotationDeg); // Figma: positive = counterclockwise
+  };
+
   const SKIP_TAGS = new Set(['script', 'style', 'link', 'meta', 'noscript', 'template', 'head', 'title', 'br', 'wbr', 'source', 'track', 'iframe']);
 
   const walk = async (el) => {
@@ -190,7 +209,9 @@ const EXTRACTOR = async ({ selector }) => {
     const abs = ['absolute', 'fixed', 'sticky'].includes(cs.position);
 
     if (tag === 'svg') {
-      return { type: 'SVG', name: nodeName(el), rect: rr(rect), svg: el.outerHTML, abs, style: M.mapBoxStyle(cs, rect) };
+      const svgNode = { type: 'SVG', name: nodeName(el), rect: rr(rect), svg: el.outerHTML, abs, style: M.mapBoxStyle(cs, rect) };
+      applyLeafRotation(svgNode, el, cs);
+      return svgNode;
     }
 
     if (tag === 'img' || tag === 'video' || tag === 'canvas') {
@@ -216,6 +237,7 @@ const EXTRACTOR = async ({ selector }) => {
         node.image = { base64: asset.base64, scaleMode: fitCrop.scaleMode };
         if (fitCrop.crop) node.image.crop = fitCrop.crop;
       }
+      applyLeafRotation(node, el, cs);
       return node;
     }
 
@@ -297,11 +319,18 @@ const EXTRACTOR = async ({ selector }) => {
     }
     for (const c of node.children) delete c._po;
 
+    // Rotate leaf frames (no element children) — rotated badges/boxes. Frames
+    // with element children keep the current AABB behavior (nested-transform
+    // local-space math is future work; see ROADMAP 1.2).
+    const hasElementChild = node.children.some((c) => c.type !== 'TEXT');
+    if (!hasElementChild) applyLeafRotation(node, el, cs);
+
     // Collapse plain text wrappers (p, h1, span...) into a single TEXT node.
     const st = node.style;
     if (
       node.children.length === 1 &&
       node.children[0].type === 'TEXT' &&
+      node.rotation === undefined &&
       !node.component &&
       !st.background && !st.gradient && !st.backgroundImage &&
       !st.border && !st.shadows && !st.radius

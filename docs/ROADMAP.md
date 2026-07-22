@@ -37,11 +37,18 @@ three-layer local test harness (unit / mock-API / visual preview).
   fixtures; e2e test on `test/fixtures/z-index.html`. Known limit: Figma
   can't express paint-order ≠ layout-order, so reordering an *in-flow* flex
   item with z-index also moves it in Auto Layout (rare).
-- [ ] **1.2 CSS transforms** (M)
-  `rotate()` / `scale()` / `translate()` currently capture only the axis-
-  aligned bounding box → rotated cards come out unrotated and wrongly sized.
-  Decompose the computed transform matrix; emit untransformed size + rotation
-  (Figma `rotation`/`relativeTransform`). Skew falls back to rasterize (2.2).
+- [~] **1.2 CSS transforms** — leaf rotation done; nested/skew deferred (M)
+  `decomposeMatrix()` (css-map, unit-tested: rotate/scale/translate/skew/
+  matrix3d) extracts the 2D parts. **Leaf** elements (images, SVGs, childless
+  boxes) now emit their untransformed size + `rotation` instead of an oversized
+  unrotated AABB — verified against the browser in the preview overlay
+  (test/fixtures/rotate.html). Remaining, deferred with flags:
+    - **Rotated elements with element children**: keep AABB (nested-transform
+      local-space math not done).
+    - **Skew / non-uniform scale**: decomposed but not applied — needs the
+      rasterize fallback (2.2).
+    - **Figma rotation pivot/sign**: builder sets `node.rotation` about center;
+      confirm against live Figma in the 2.3 export loop.
 - [x] **1.3 List markers** (S)
   `markerString()` maps `list-style-type` + ordinal to the marker glyph/number
   (disc/circle/square, decimal[-leading-zero], lower/upper alpha & roman);

@@ -80,6 +80,7 @@ parent-relative at creation time. All colors are `{ r, g, b, a }` in 0..1.
 | `name` | string | layer name (`tag#id.class` or text snippet) |
 | `rect` | `{x, y, width, height}` | absolute rendered bounding box |
 | `abs` | boolean | CSS `position: absolute/fixed/sticky` — becomes `layoutPositioning: 'ABSOLUTE'` inside Auto Layout parents |
+| `rotation` | number? | Figma rotation degrees (CCW+) for rotated **leaf** nodes; `rect` is then the untransformed box. Absent when unrotated |
 | `style` | object | box styling, see below |
 
 ### `style`

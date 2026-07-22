@@ -31,6 +31,20 @@ test('z-index: children emitted in back-to-front paint order, not DOM order', as
   assert.deepEqual(order, ['Behind', 'Back', 'Front']);
 });
 
+test('transforms: rotated leaf boxes captured at untransformed size + angle', async () => {
+  const tree = await extractTree(fixture('rotate.html'), { width: 400, height: 300 });
+  const card = find(tree, (n) => (n.name || '').includes('card'));
+  const badge = find(tree, (n) => (n.name || '').includes('badge'));
+  assert.ok(card && badge, 'card and badge found');
+  // CSS rotate(-12deg) → Figma +12 (CCW positive); untransformed size 120x100
+  // (not the larger rotated AABB).
+  assert.ok(Math.abs(card.rotation - 12) < 0.5, `card rotation ${card.rotation} ≈ 12`);
+  assert.ok(Math.abs(card.rect.width - 120) < 1 && Math.abs(card.rect.height - 100) < 1);
+  // CSS rotate(20deg) → Figma -20
+  assert.ok(Math.abs(badge.rotation - -20) < 0.5, `badge rotation ${badge.rotation} ≈ -20`);
+  assert.ok(Math.abs(badge.rect.width - 60) < 1 && Math.abs(badge.rect.height - 24) < 1);
+});
+
 test('object-fit: off-center cover produces a CROP rect; centered stays FILL', async () => {
   const tree = await extractTree(fixture('object-fit.html'), { width: 300, height: 200 });
   const imgs = [];

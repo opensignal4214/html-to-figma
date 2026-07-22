@@ -35,6 +35,7 @@ function makeNode(type) {
     x: 0, y: 0, width: 0, height: 0,
     opacity: 1,
     visible: true,
+    rotation: 0,
     fills: [], strokes: [], effects: [], dashPattern: [],
     strokeWeight: 1, strokeAlign: 'INSIDE',
     cornerRadius: 0,
@@ -235,12 +236,15 @@ function renderText(n) {
 function renderNode(n) {
   if (n.visible === false) return '';
   const opacity = n.opacity !== 1 ? ` opacity="${n.opacity}"` : '';
+  // Figma rotation is CCW-positive about the node center; SVG rotate is
+  // CW-positive, so negate. Rotate about the node's own center.
+  const rot = n.rotation ? ` rotate(${-n.rotation} ${n.width / 2} ${n.height / 2})` : '';
   if (n.type === 'TEXT') {
     return opacity ? `<g${opacity}>${renderText(n)}</g>` : renderText(n);
   }
   if (n.type === 'SVG_FRAME') {
     const svg = n.__svg ? sizeSvg(n.__svg, n.width, n.height) : '';
-    return `<g transform="translate(${n.x},${n.y})"${opacity}>${svg}</g>`;
+    return `<g transform="translate(${n.x},${n.y})${rot}"${opacity}>${svg}</g>`;
   }
   let kids = (n.children || []).map(renderNode).join('');
   if (n.clipsContent && kids) {
@@ -249,7 +253,7 @@ function renderNode(n) {
     defs.push(`<clipPath id="${id}"><rect width="${n.width}" height="${n.height}" rx="${rx}"/></clipPath>`);
     kids = `<g clip-path="url(#${id})">${kids}</g>`;
   }
-  return `<g transform="translate(${n.x},${n.y})"${opacity}>${renderBox(n)}${kids}</g>`;
+  return `<g transform="translate(${n.x},${n.y})${rot}"${opacity}>${renderBox(n)}${kids}</g>`;
 }
 
 // --------------------------------------------------------------------- main
