@@ -168,3 +168,6 @@ unit-testable.
   resizing a generated component won't reflow like the original CSS yet.
 - Text is one style run per node; nested inline styling becomes sibling nodes.
 - Cross-origin images without CORS headers become placeholders.
+
+The phased plan for closing these gaps — with implementation sketches, effort
+estimates, and exit criteria per item — lives in [ROADMAP.md](ROADMAP.md).

@@ -97,7 +97,8 @@ const { tree, script } = await htmlToFigma('page.html', { width: 1280 });
 
 Architecture, the intermediate tree schema, and all CSS→Figma mapping decisions
 are documented in [docs/DESIGN.md](docs/DESIGN.md) — read it before changing the
-mapping, and follow its TDD workflow (failing unit test first).
+mapping, and follow its TDD workflow (failing unit test first). The path to
+full support is planned phase by phase in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Testing without opening Figma
 
