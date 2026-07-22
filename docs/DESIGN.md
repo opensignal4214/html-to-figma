@@ -118,8 +118,11 @@ decoration, case }`.
 
 ### `IMAGE` / `SVG` extras
 
-`IMAGE.image`: `{ base64, scaleMode: 'FILL'|'FIT' }` (missing → gray
-placeholder). `SVG.svg`: raw markup, rebuilt with `figma.createNodeFromSvg`.
+`IMAGE.image`: `{ base64, scaleMode: 'FILL'|'FIT'|'CROP', crop? }` (missing →
+gray placeholder). `crop` is a normalized `{x,y,w,h}` sub-rectangle present
+only for off-center `object-fit: cover`; the builder turns it into a CROP
+`imageTransform`. `SVG.svg`: raw markup, rebuilt with
+`figma.createNodeFromSvg`.
 
 ## CSS → Figma mapping decisions
 

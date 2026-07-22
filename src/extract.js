@@ -111,6 +111,22 @@ const EXTRACTOR = async ({ selector }) => {
     };
   };
 
+  // object-position (computed) → [x, y] as 0..1 fractions. Computed values are
+  // resolved to px or %, e.g. "0px 50%" or "50% 50%"; keywords are already
+  // normalized by the browser. Non-% px can't be turned into a fraction without
+  // the overflow, so we approximate px as already-resolved and clamp.
+  const parseObjectPosition = (value) => {
+    const parts = String(value || '50% 50%').trim().split(/\s+/);
+    const toFrac = (p) => {
+      if (p === undefined) return 0.5;
+      if (p.includes('%')) return (parseFloat(p) || 0) / 100;
+      // bare px offset from the edge; without overflow context, 0px→0, else clamp
+      const px = parseFloat(p);
+      return Number.isFinite(px) ? (px <= 0 ? 0 : 0.5) : 0.5;
+    };
+    return [toFrac(parts[0]), toFrac(parts[1] !== undefined ? parts[1] : parts[0])];
+  };
+
   const measureTextWidth = (str, cs) => {
     const ctx = (window.__mctx = window.__mctx || document.createElement('canvas').getContext('2d'));
     ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
@@ -189,10 +205,16 @@ const EXTRACTOR = async ({ selector }) => {
       }
       if (asset && asset.svgText) return { type: 'SVG', name: nodeName(el), rect: rr(rect), svg: asset.svgText, abs, style: M.mapBoxStyle(cs, rect) };
       if (asset) {
-        node.image = {
-          base64: asset.base64,
-          scaleMode: cs.objectFit === 'contain' ? 'FIT' : 'FILL',
-        };
+        const intrinsic =
+          tag === 'img'
+            ? { width: el.naturalWidth, height: el.naturalHeight }
+            : tag === 'video'
+              ? { width: el.videoWidth, height: el.videoHeight }
+              : { width: el.width, height: el.height };
+        const [posX, posY] = parseObjectPosition(cs.objectPosition);
+        const fitCrop = M.objectFitCrop(rr(rect), intrinsic, cs.objectFit, posX, posY);
+        node.image = { base64: asset.base64, scaleMode: fitCrop.scaleMode };
+        if (fitCrop.crop) node.image.crop = fitCrop.crop;
       }
       return node;
     }

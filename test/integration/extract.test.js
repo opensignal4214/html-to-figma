@@ -31,6 +31,25 @@ test('z-index: children emitted in back-to-front paint order, not DOM order', as
   assert.deepEqual(order, ['Behind', 'Back', 'Front']);
 });
 
+test('object-fit: off-center cover produces a CROP rect; centered stays FILL', async () => {
+  const tree = await extractTree(fixture('object-fit.html'), { width: 300, height: 200 });
+  const imgs = [];
+  const collect = (n) => {
+    if (n.type === 'IMAGE') imgs.push(n);
+    for (const c of n.children || []) collect(c);
+  };
+  collect(tree);
+  const byAlt = (needle) => imgs.find((i) => (i.name || '').includes(needle));
+  const left = byAlt('left');
+  const center = byAlt('center');
+  const fit = byAlt('fit');
+  assert.equal(left.image.scaleMode, 'CROP');
+  assert.ok(Math.abs(left.image.crop.x - 0) < 0.02 && Math.abs(left.image.crop.w - 0.5) < 0.02);
+  assert.equal(center.image.scaleMode, 'FILL');
+  assert.equal(center.image.crop, undefined);
+  assert.equal(fit.image.scaleMode, 'FIT');
+});
+
 test('list markers: ul bullets and ol numbers (with start) synthesized as text', async () => {
   const tree = await extractTree(fixture('list.html'), { width: 400, height: 300 });
   const markers = [];

@@ -52,9 +52,15 @@ three-layer local test harness (unit / mock-API / visual preview).
 - [ ] **1.4 `clip-path` and CSS masks** (M)
   Angled section dividers, non-rect image crops → Figma vector masks for
   polygon/inset/circle/ellipse clip paths; anything else → rasterize (2.2).
-- [ ] **1.5 Image crop precision** (S)
-  `object-position` / `background-position` offsets → CROP-mode image fill
-  with exact `imageTransform`, instead of today's center-crop FILL.
+- [x] **1.5 Image crop precision** (S)
+  `objectFitCrop()` maps object-fit/object-position to a Figma scale mode +
+  normalized crop rect: contain→FIT, centered cover→FILL (unchanged),
+  off-center cover→CROP with an `imageTransform` from the visible sub-rect.
+  Extractor captures intrinsic size + object-position; builder emits the
+  CROP fill. Unit + e2e tested (generated PNG fixture). NOTE: the
+  crop-rect→imageTransform matrix convention is not yet verified against live
+  Figma — flag for the Phase 2.3 real-Figma export loop. `background-position`
+  on background images still center-crops (follow-up).
 - [x] **1.6 Text line-box capture** (S)
   `lineBoxRect()` expands a single-line tight rect to its CSS line box,
   centered, fixing the vertical drift when line-height is generous (found by a

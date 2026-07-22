@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  * { margin: 0; box-sizing: border-box; }
+  body { font-family: Inter, sans-serif; }
+  .thumb { width: 60px; height: 60px; display: block; }
+  /* 20x10 image (2:1) into a 60x60 box: cover scales to 120x60.
+     object-position:left shows the left half → crop x=0, w=0.5. */
+  .left { object-fit: cover; object-position: left; }
+  .center { object-fit: cover; }         /* centered cover → plain FILL */
+  .fit { object-fit: contain; }          /* → FIT */
+</style></head><body>
+  <div data-figma-component="Thumbs">
+    <img class="thumb left" src="wide.png" alt="left">
+    <img class="thumb center" src="wide.png" alt="center">
+    <img class="thumb fit" src="wide.png" alt="fit">
+  </div>
+</body></html>

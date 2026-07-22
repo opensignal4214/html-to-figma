@@ -180,7 +180,14 @@ function __createImage(n) {
   if (n.image && n.image.base64) {
     try {
       var img = figma.createImage(__base64ToBytes(n.image.base64));
-      rect.fills = [{ type: 'IMAGE', imageHash: img.hash, scaleMode: n.image.scaleMode || 'FILL' }];
+      var fill = { type: 'IMAGE', imageHash: img.hash, scaleMode: n.image.scaleMode || 'FILL' };
+      // CROP mode honors object-position: imageTransform maps container UV to
+      // the visible normalized sub-rectangle of the image.
+      if (n.image.scaleMode === 'CROP' && n.image.crop) {
+        var c = n.image.crop;
+        fill.imageTransform = [[c.w, 0, c.x], [0, c.h, c.y]];
+      }
+      rect.fills = [fill];
       applied = true;
     } catch (e) {
       console.warn('html-to-figma: image skipped: ' + e.message);

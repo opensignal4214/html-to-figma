@@ -211,6 +211,37 @@ export function paintOrder(items) {
   return decorated.map((d) => d.i);
 }
 
+/**
+ * Resolve an image's Figma scale mode and (for off-center cover) crop rect.
+ * `container`/`intrinsic` are {width,height}; `fit` is object-fit; posX/posY
+ * are object-position as 0..1 fractions. Returns { scaleMode } or
+ * { scaleMode: 'CROP', crop: {x,y,w,h} } where crop is the normalized visible
+ * sub-rectangle of the image. Centered cover collapses to FILL so existing
+ * output is unchanged; contain → FIT; fill/none/default → FILL.
+ */
+export function objectFitCrop(container, intrinsic, fit, posX, posY) {
+  if (fit === 'contain' || fit === 'scale-down') return { scaleMode: 'FIT' };
+  if (fit !== 'cover') return { scaleMode: 'FILL' };
+  const cw = container.width;
+  const ch = container.height;
+  const iw = intrinsic.width;
+  const ih = intrinsic.height;
+  if (!iw || !ih || !cw || !ch) return { scaleMode: 'FILL' };
+  if (Math.abs(posX - 0.5) < 1e-9 && Math.abs(posY - 0.5) < 1e-9) return { scaleMode: 'FILL' };
+  const scale = Math.max(cw / iw, ch / ih);
+  const dispW = iw * scale;
+  const dispH = ih * scale;
+  const overflowX = dispW - cw;
+  const overflowY = dispH - ch;
+  const crop = {
+    x: round((overflowX > 0 ? (posX * overflowX) / dispW : 0) * 1000) / 1000,
+    y: round((overflowY > 0 ? (posY * overflowY) / dispH : 0) * 1000) / 1000,
+    w: round((cw / dispW) * 1000) / 1000,
+    h: round((ch / dispH) * 1000) / 1000,
+  };
+  return { scaleMode: 'CROP', crop };
+}
+
 /** Roman numeral for 1..3999, else the number as a string. */
 export function romanNumeral(n) {
   if (!Number.isInteger(n) || n < 1 || n > 3999) return String(n);
