@@ -6,14 +6,30 @@
       "eval_name": "testimonial-cards",
       "prompt": "I'm a designer mocking up our marketing site. Create a testimonials section as HTML — three cards, each with an avatar, the quote, the person's name and their role. I'm going to convert it into Figma components using the html-to-figma tool in this repo, so structure it accordingly. Save it as testimonials.html in the output directory I give you.",
       "expected_output": "Self-contained HTML file with three testimonial cards marked data-figma-component (non-nested), flexbox layout, Figma-safe fonts/styles, inline-SVG or data-URI imagery; converts via the CLI into the expected components with the mock run passing.",
-      "files": []
+      "files": [],
+      "expectations": [
+        "Components explicitly marked with data-figma-component, names human-readable",
+        "No nested component marks (converter tree contains no component inside a component)",
+        "Flexbox layout only — no grid, transforms, or pseudo-element content",
+        "Figma-safe font stack ending in a generic fallback; self-contained file",
+        "html-to-figma CLI converts it; expected components detected; mock Figma run passes",
+        "Summary states the chosen component inventory (all marked names)"
+      ]
     },
     {
       "id": 1,
       "eval_name": "navbar",
       "prompt": "hey can you make me an html file with a site navbar: logo on the left, 4 nav links in the middle, and a Sign up button on the right. i'll import it into figma as components with this repo's tool. save it as navbar.html in the output directory i give you",
       "expected_output": "Self-contained HTML navbar using flexbox with marked component(s) at one granularity (no nested marks), safe styles, Figma-available font stack; CLI conversion lists sensible components and the mock run passes.",
-      "files": []
+      "files": [],
+      "expectations": [
+        "Components explicitly marked with data-figma-component, names human-readable",
+        "No nested component marks (converter tree contains no component inside a component)",
+        "Flexbox layout only — no grid, transforms, or pseudo-element content",
+        "Figma-safe font stack ending in a generic fallback; self-contained file",
+        "html-to-figma CLI converts it; expected components detected; mock Figma run passes",
+        "Summary states the chosen component inventory (all marked names)"
+      ]
     }
   ]
 }
