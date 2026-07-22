@@ -169,8 +169,11 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   *unsupported* functions (grayscale/brightness/…) fall through to the 2.2
   rasterize fallback — so blur is now editable, not flattened. Unit + through-
   mock tested; preview renders blur/backdrop-blur; baseline unchanged.
-- [ ] **4.6 `background-repeat` tiling** (S) — → IMAGE fill
-  `scaleMode: 'TILE'` with `scalingFactor` from `background-size`.
+- [x] **4.6 `background-repeat` tiling** (S) — a repeating natural-size
+  background image → IMAGE fill `scaleMode: 'TILE'` (scalingFactor 1), fixing
+  the default case where small textures were stretched instead of tiled. Preview
+  tiles via a foreignObject div. Unit + through-mock tested; baseline unchanged.
+  Explicit non-natural tile sizes (`background-size: Npx`) are a follow-up.
 - [x] **4.7 Blend modes** (S) — `mix-blend-mode` → node `blendMode` (BLEND_MODES map in css-map); builder + preview apply it. Unit-tested; baseline unchanged.
 - [ ] **4.8 Overflow-scrolled containers** (S) — capture an inner scroller's
   full `scrollHeight` content, clipped by the frame (`clipsContent` already

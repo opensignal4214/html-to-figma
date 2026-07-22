@@ -156,7 +156,9 @@ function __frameFills(st) {
   if (st.backgroundImage && st.backgroundImage.base64) {
     try {
       var img = figma.createImage(__base64ToBytes(st.backgroundImage.base64));
-      fills.push({ type: 'IMAGE', imageHash: img.hash, scaleMode: st.backgroundImage.scaleMode || 'FILL' });
+      var bgFill = { type: 'IMAGE', imageHash: img.hash, scaleMode: st.backgroundImage.scaleMode || 'FILL' };
+      if (bgFill.scaleMode === 'TILE') bgFill.scalingFactor = st.backgroundImage.scalingFactor || 1;
+      fills.push(bgFill);
     } catch (e) {
       console.warn('html-to-figma: background image skipped: ' + e.message);
     }

@@ -460,7 +460,10 @@ export function mapBoxStyle(cs, rect) {
       const url = matchCssUrl(cs.backgroundImage);
       if (url) {
         st.bgUrl = url; // resolved to bytes by the extractor
-        st.bgScaleMode = cs.backgroundSize === 'contain' ? 'FIT' : 'FILL';
+        const repeats = cs.backgroundRepeat && cs.backgroundRepeat !== 'no-repeat';
+        const autoSize = !cs.backgroundSize || cs.backgroundSize === 'auto' || cs.backgroundSize === 'auto auto';
+        // A repeating natural-size image tiles; otherwise it's a single fill/fit.
+        st.bgScaleMode = repeats && autoSize ? 'TILE' : cs.backgroundSize === 'contain' ? 'FIT' : 'FILL';
       }
     }
   }

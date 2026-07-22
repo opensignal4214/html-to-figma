@@ -296,9 +296,13 @@ const EXTRACTOR = async ({ selector }) => {
     };
 
     if (node.style.bgUrl) {
-      const asset = await fetchAsset(new URL(node.style.bgUrl, location.href).href);
+      const resolved = new URL(node.style.bgUrl, location.href).href;
+      const asset = await fetchAsset(resolved);
       if (asset && asset.base64) {
-        node.style.backgroundImage = { base64: asset.base64, scaleMode: node.style.bgScaleMode || 'FILL' };
+        const scaleMode = node.style.bgScaleMode || 'FILL';
+        node.style.backgroundImage = { base64: asset.base64, scaleMode };
+        // Figma tiles at natural pixel size (scalingFactor 1).
+        if (scaleMode === 'TILE') node.style.backgroundImage.scalingFactor = 1;
       }
       delete node.style.bgUrl;
       delete node.style.bgScaleMode;

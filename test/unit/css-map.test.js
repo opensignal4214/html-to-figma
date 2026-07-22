@@ -249,6 +249,20 @@ test('mapBoxStyle: linear-gradient captured, url() left for async fetch', () => 
   assert.equal(contain.bgScaleMode, 'FIT');
 });
 
+test('mapBoxStyle: repeating natural-size background image → TILE', () => {
+  const tile = mapBoxStyle(
+    { ...boxBase, backgroundImage: 'url("tex.png")', backgroundRepeat: 'repeat', backgroundSize: 'auto' },
+    rect100,
+  );
+  assert.equal(tile.bgScaleMode, 'TILE');
+  // no-repeat with same auto size is a single stretched fill, not a tile
+  const single = mapBoxStyle(
+    { ...boxBase, backgroundImage: 'url("tex.png")', backgroundRepeat: 'no-repeat', backgroundSize: 'auto' },
+    rect100,
+  );
+  assert.equal(single.bgScaleMode, 'FILL');
+});
+
 test('mapBoxStyle: uniform border → single width form, flags dashed', () => {
   const st = mapBoxStyle(
     {

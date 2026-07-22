@@ -196,6 +196,9 @@ function renderBox(n) {
       const id = `g${defId++}`;
       defs.push(gradientDef(id, f));
       out += `<rect width="${n.width}" height="${n.height}" rx="${rx}" fill="url(#${id})"${out ? '' : shadow}/>`;
+    } else if (f.type === 'IMAGE' && images[f.imageHash] && f.scaleMode === 'TILE') {
+      // Tile at natural size — a foreignObject div lets the browser repeat it.
+      out += `<foreignObject width="${n.width}" height="${n.height}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${n.width}px;height:${n.height}px;background:url(${images[f.imageHash]}) repeat;border-radius:${rx}px"></div></foreignObject>`;
     } else if (f.type === 'IMAGE' && images[f.imageHash]) {
       let img = `<image width="${n.width}" height="${n.height}" href="${images[f.imageHash]}" preserveAspectRatio="${f.scaleMode === 'FIT' ? 'xMidYMid meet' : 'xMidYMid slice'}"/>`;
       if (rx > 0) {
