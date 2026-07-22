@@ -88,10 +88,11 @@ visually identical in the preview overlay.
   screenshot — closes the loop against the real Figma renderer instead of our
   simulation.
 
-- [ ] **2.4 Preview: size raw SVG embeds** (S)
-  The simulated render embeds SVG markup verbatim; an SVG without explicit
-  `width`/`height` attributes renders at viewport size (found by a skill-eval
-  agent). Scale embedded SVGs to the node's rect in the preview renderer.
+- [x] **2.4 Preview: size raw SVG embeds** (S)
+  `sizeSvg()` (test/preview-util.js) forces an embedded SVG's root to w×h,
+  synthesizing a viewBox from original dimensions when absent, mirroring
+  Figma's createNodeFromSvg + resize. Fixes viewport-sized SVGs in the
+  simulated render. Unit-tested; wired into the preview renderer.
 
 **Exit criteria:** `npm run preview` prints a fidelity % for the example and
 CI enforces it; a form-controls example ships at ~100% via rasterize fallback.

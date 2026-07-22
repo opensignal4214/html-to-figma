@@ -9,6 +9,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { launchBrowser } from '../src/extract.js';
+import { sizeSvg } from './preview-util.js';
 
 const scriptPath = process.argv[2] || 'out/figma-script.js';
 const htmlPath = process.argv[3] || 'examples/pricing-card.html';
@@ -238,7 +239,8 @@ function renderNode(n) {
     return opacity ? `<g${opacity}>${renderText(n)}</g>` : renderText(n);
   }
   if (n.type === 'SVG_FRAME') {
-    return `<g transform="translate(${n.x},${n.y})"${opacity}>${n.__svg || ''}</g>`;
+    const svg = n.__svg ? sizeSvg(n.__svg, n.width, n.height) : '';
+    return `<g transform="translate(${n.x},${n.y})"${opacity}>${svg}</g>`;
   }
   let kids = (n.children || []).map(renderNode).join('');
   if (n.clipsContent && kids) {
