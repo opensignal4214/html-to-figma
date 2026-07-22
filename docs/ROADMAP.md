@@ -157,7 +157,7 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   other filter functions → rasterize fallback.
 - [ ] **4.6 `background-repeat` tiling** (S) — → IMAGE fill
   `scaleMode: 'TILE'` with `scalingFactor` from `background-size`.
-- [ ] **4.7 Blend modes** (S) — `mix-blend-mode` → node `blendMode`.
+- [x] **4.7 Blend modes** (S) — `mix-blend-mode` → node `blendMode` (BLEND_MODES map in css-map); builder + preview apply it. Unit-tested; baseline unchanged.
 - [ ] **4.8 Overflow-scrolled containers** (S) — capture an inner scroller's
   full `scrollHeight` content, clipped by the frame (`clipsContent` already
   set), so nothing below the inner fold is lost.

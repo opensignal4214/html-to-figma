@@ -327,6 +327,14 @@ export function alphaLabel(n) {
   return out;
 }
 
+const BLEND_MODES = {
+  multiply: 'MULTIPLY', screen: 'SCREEN', overlay: 'OVERLAY', darken: 'DARKEN',
+  lighten: 'LIGHTEN', 'color-dodge': 'COLOR_DODGE', 'color-burn': 'COLOR_BURN',
+  'hard-light': 'HARD_LIGHT', 'soft-light': 'SOFT_LIGHT', difference: 'DIFFERENCE',
+  exclusion: 'EXCLUSION', hue: 'HUE', saturation: 'SATURATION', color: 'COLOR',
+  luminosity: 'LUMINOSITY',
+};
+
 const BULLET_GLYPHS = { disc: '•', circle: '◦', square: '▪' };
 
 /**
@@ -408,6 +416,7 @@ export function mapBoxStyle(cs, rect) {
   const shadows = parseShadows(cs.boxShadow);
   if (shadows) st.shadows = shadows;
   if (cs.overflow !== 'visible') st.clip = true;
+  if (cs.mixBlendMode && BLEND_MODES[cs.mixBlendMode]) st.blendMode = BLEND_MODES[cs.mixBlendMode];
   return st;
 }
 

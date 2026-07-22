@@ -21,6 +21,7 @@ function makeNode(type) {
     width: 0,
     height: 0,
     opacity: 1,
+    blendMode: 'NORMAL',
     fills: [],
     strokes: [],
     effects: [],

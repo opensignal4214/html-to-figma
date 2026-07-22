@@ -278,6 +278,9 @@ async function __createNode(n, parent, parentRect, ctx) {
     node.y = n.rect.y - parentRect.y;
   }
   if (n.style && n.style.opacity !== undefined) node.opacity = n.style.opacity;
+  if (n.style && n.style.blendMode && 'blendMode' in node) {
+    try { node.blendMode = n.style.blendMode; } catch (e) { /* unsupported */ }
+  }
   // Leaf rotation: n.rect is the untransformed box, so x/y put the center in
   // the right place; Figma's rotation setter turns the node about its center.
   // (Pivot/sign to be confirmed against live Figma — ROADMAP 1.2 / 2.3.)

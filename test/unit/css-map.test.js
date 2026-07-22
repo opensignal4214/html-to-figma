@@ -269,6 +269,13 @@ test('mapBoxStyle: percentage radius resolves against min(width, height)', () =>
   assert.equal(st.radius.tl, 25);
 });
 
+test('mapBoxStyle: mix-blend-mode maps to a Figma blend mode; normal omitted', () => {
+  assert.equal(mapBoxStyle(boxBase, rect100).blendMode, undefined);
+  assert.equal(mapBoxStyle({ ...boxBase, mixBlendMode: 'multiply' }, rect100).blendMode, 'MULTIPLY');
+  assert.equal(mapBoxStyle({ ...boxBase, mixBlendMode: 'color-dodge' }, rect100).blendMode, 'COLOR_DODGE');
+  assert.equal(mapBoxStyle({ ...boxBase, mixBlendMode: 'normal' }, rect100).blendMode, undefined);
+});
+
 test('mapBoxStyle: opacity only present when < 1; overflow hidden → clip', () => {
   assert.equal(mapBoxStyle(boxBase, rect100).opacity, undefined);
   assert.equal(mapBoxStyle({ ...boxBase, opacity: '0.5' }, rect100).opacity, 0.5);
