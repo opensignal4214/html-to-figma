@@ -16,6 +16,10 @@ Options:
   -H, --height <px>      Viewport height (default: 900)
   -s, --selector <css>   Capture only the first element matching this CSS
                          selector instead of the whole page
+      --text-fidelity <mode>
+                         'editable' (default) keeps wrapping text as one
+                         editable node; 'exact' emits one text node per
+                         rendered line so line breaks match the browser exactly
       --name <name>      Name for the generated Figma plugin
       --no-plugin        Skip generating the figma-plugin/ folder
       --no-tree          Skip writing the debug tree.json
@@ -45,6 +49,7 @@ function parseArgs(argv) {
       case '-w': case '--width': opts.width = parseInt(argv[++i], 10); break;
       case '-H': case '--height': opts.height = parseInt(argv[++i], 10); break;
       case '-s': case '--selector': opts.selector = argv[++i]; break;
+      case '--text-fidelity': opts.textFidelity = argv[++i]; break;
       case '--name': opts.name = argv[++i]; break;
       case '--no-plugin': opts.plugin = false; break;
       case '--no-tree': opts.tree = false; break;

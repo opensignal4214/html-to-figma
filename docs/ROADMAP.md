@@ -127,10 +127,13 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   list is a heuristic — the authoritative check is
   `figma.listAvailableFontsAsync()` inside Figma; `@font-face` detection is a
   follow-up.
-- [ ] **3.2 Per-line text mode (`--text-fidelity exact`)** (M)
-  Chromium already knows the rendered line boxes; optionally emit one TEXT
-  node per line so line breaks can never differ. Default stays editable
-  (wrapping) text; flag trades editability for pixel parity.
+- [x] **3.2 Per-line text mode (`--text-fidelity exact`)** (M)
+  `splitTextByLine()` groups a text node's characters into rendered lines (by
+  client-rect top) and emits one TEXT node per line at its exact rect, so line
+  breaks can never differ from the browser. Opt-in via `--text-fidelity exact`
+  (also `htmlToFigma({ textFidelity })`); default `editable` keeps one wrapping
+  node and is byte-identical to before. Unit-covered via e2e (wrap fixture:
+  1 node default vs 3 lines exact).
 - [ ] **3.3 Text-to-vector outlining (`--text-fidelity outline`)** (L)
   For brand fonts Figma can't load: render each text run to SVG paths in the
   browser and emit vectors — pixel-perfect, non-editable, per-node opt-in via

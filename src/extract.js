@@ -48,7 +48,7 @@ function cssMapBrowserSource() {
  * injected first). Walks the rendered DOM and returns the intermediate tree —
  * see docs/DESIGN.md for the schema.
  */
-const EXTRACTOR = async ({ selector }) => {
+const EXTRACTOR = async ({ selector, textFidelity }) => {
   const M = window.__cssMap;
   const round = (v) => Math.round(v * 100) / 100;
   const rr = (rect) => ({
@@ -92,23 +92,68 @@ const EXTRACTOR = async ({ selector }) => {
 
   const textNodeToTree = (textNode, cs) => {
     const characters = textNode.textContent.replace(/\s+/g, ' ').trim();
-    if (!characters) return null;
+    if (!characters) return [];
     const range = document.createRange();
     range.selectNodeContents(textNode);
     const rect = range.getBoundingClientRect();
-    if (rect.width < 0.5 || rect.height < 0.5) return null;
+    if (rect.width < 0.5 || rect.height < 0.5) return [];
     const style = M.mapTextStyle(cs);
-    // Count rendered lines (unique fragment tops) so single-line text can be
-    // expanded to its full line box, fixing vertical drift with tall line-height.
+
+    const clientRects = range.getClientRects();
     const lineTops = new Set();
-    for (const r of range.getClientRects()) lineTops.add(Math.round(r.top));
+    for (const r of clientRects) lineTops.add(Math.round(r.top));
+
+    // Per-line mode: emit one TEXT node per rendered line so line breaks in
+    // Figma can never differ from the browser. Default mode keeps one node.
+    if (textFidelity === 'exact' && lineTops.size > 1) {
+      const nodes = splitTextByLine(textNode, style);
+      if (nodes.length) return nodes;
+    }
+
     const box = M.lineBoxRect(rr(rect), style.lineHeightPx, lineTops.size || 1);
-    return {
-      type: 'TEXT',
-      name: characters.slice(0, 40),
-      rect: box,
-      text: { characters, ...style },
-    };
+    return [{ type: 'TEXT', name: characters.slice(0, 40), rect: box, text: { characters, ...style } }];
+  };
+
+  // Group a text node's characters into rendered lines (by client-rect top) and
+  // emit a TEXT node per line at its exact rect.
+  const splitTextByLine = (textNode, style) => {
+    const full = textNode.textContent;
+    const range = document.createRange();
+    const lines = [];
+    let cur = null;
+    for (let i = 0; i < full.length; i++) {
+      range.setStart(textNode, i);
+      range.setEnd(textNode, i + 1);
+      const r = range.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue; // collapsed whitespace at a wrap
+      if (!cur || Math.abs(r.top - cur.top) > 1) {
+        cur = { top: r.top, left: r.left, right: r.right, bottom: r.bottom, start: i, end: i + 1 };
+        lines.push(cur);
+      } else {
+        cur.left = Math.min(cur.left, r.left);
+        cur.right = Math.max(cur.right, r.right);
+        cur.bottom = Math.max(cur.bottom, r.bottom);
+        cur.end = i + 1;
+      }
+    }
+    return lines
+      .map((l) => {
+        const characters = full.slice(l.start, l.end).replace(/\s+/g, ' ').trim();
+        if (!characters) return null;
+        const tight = {
+          x: round(l.left + window.scrollX),
+          y: round(l.top + window.scrollY),
+          width: round(l.right - l.left),
+          height: round(l.bottom - l.top),
+        };
+        return {
+          type: 'TEXT',
+          name: characters.slice(0, 40),
+          rect: M.lineBoxRect(tight, style.lineHeightPx, 1),
+          text: { characters, ...style },
+        };
+      })
+      .filter(Boolean);
   };
 
   // object-position (computed) → [x, y] as 0..1 fractions. Computed values are
@@ -334,8 +379,7 @@ const EXTRACTOR = async ({ selector }) => {
     const parentIsFlex = node.layout.mode !== 'NONE';
     for (const child of el.childNodes) {
       if (child.nodeType === Node.TEXT_NODE) {
-        const textTree = textNodeToTree(child, cs);
-        if (textTree) {
+        for (const textTree of textNodeToTree(child, cs)) {
           textTree._po = { position: 'static', zIndex: 'auto', flexItem: parentIsFlex };
           node.children.push(textTree);
         }
@@ -451,7 +495,7 @@ export async function extractTree(input, opts = {}) {
       await page.goto(url, { waitUntil: 'load', timeout: 30000 });
     });
     await page.addScriptTag({ content: cssMapBrowserSource() });
-    const tree = await page.evaluate(EXTRACTOR, { selector: opts.selector || null });
+    const tree = await page.evaluate(EXTRACTOR, { selector: opts.selector || null, textFidelity: opts.textFidelity || 'editable' });
     await rasterizeFlagged(page, tree);
     return markComponents(tree);
   } finally {

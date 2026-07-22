@@ -31,6 +31,23 @@ test('z-index: children emitted in back-to-front paint order, not DOM order', as
   assert.deepEqual(order, ['Behind', 'Back', 'Front']);
 });
 
+test('text-fidelity exact: wrapping text splits into one node per line', async () => {
+  const opts = { width: 400, height: 300 };
+  const editable = await extractTree(fixture('wrap.html'), opts);
+  const exact = await extractTree(fixture('wrap.html'), { ...opts, textFidelity: 'exact' });
+  const countText = (n) => (n.type === 'TEXT' ? 1 : 0) + (n.children || []).reduce((s, c) => s + countText(c), 0);
+  assert.equal(countText(editable), 1, 'default: one node for the wrapping paragraph');
+  assert.ok(countText(exact) >= 2, `exact: one node per line (got ${countText(exact)})`);
+  // Each exact-mode text node holds a single line (no internal wrap).
+  const lines = [];
+  const collect = (n) => {
+    if (n.type === 'TEXT') lines.push(n);
+    for (const c of n.children || []) collect(c);
+  };
+  collect(exact);
+  for (const l of lines) assert.ok(!/\n/.test(l.text.characters));
+});
+
 test('rasterize fallback: unmappable elements become flagged image captures', async () => {
   const tree = await extractTree(fixture('raster.html'), { width: 400, height: 200 });
   const rasters = [];
