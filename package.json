@@ -31,5 +31,10 @@
     "figma-plugin",
     "auto-layout"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@figma-plugin/helpers": "^0.15.2",
+    "@figma/plugin-typings": "^1.138.0",
+    "typescript": "^7.0.2"
+  }
 }
