@@ -213,6 +213,21 @@ test('mapFlexLayout: space-around/evenly map to native Figma SPACE_AROUND/SPACE_
   assert.equal(mapFlexLayout({ ...flexBase, justifyContent: 'space-evenly' }).primaryAlign, 'SPACE_EVENLY');
 });
 
+test('mapFlexLayout: *-reverse flips flex-start/flex-end packing (main-start is at the far edge)', () => {
+  const pa = (dir, j) => mapFlexLayout({ ...flexBase, flexDirection: dir, justifyContent: j }).primaryAlign;
+  for (const dir of ['row-reverse', 'column-reverse']) {
+    assert.equal(pa(dir, 'normal'), 'MAX');
+    assert.equal(pa(dir, 'flex-start'), 'MAX');
+    assert.equal(pa(dir, 'flex-end'), 'MIN');
+    // start/end follow the writing mode, not the flex direction → unflipped
+    assert.equal(pa(dir, 'start'), 'MIN');
+    assert.equal(pa(dir, 'end'), 'MAX');
+    assert.equal(pa(dir, 'center'), 'CENTER');
+    assert.equal(pa(dir, 'space-between'), 'SPACE_BETWEEN');
+  }
+  assert.equal(pa('row', 'flex-start'), 'MIN');
+});
+
 test('mapFlexLayout: baseline only valid on horizontal axis', () => {
   assert.equal(mapFlexLayout({ ...flexBase, alignItems: 'baseline' }).counterAlign, 'BASELINE');
   assert.equal(

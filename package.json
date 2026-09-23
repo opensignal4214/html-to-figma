@@ -13,7 +13,7 @@
     "test:types": "tsc -p test/types/tsconfig.json",
     "test:unit": "node --test \"test/unit/*.test.js\"",
     "test:e2e": "node --test \"test/integration/*.test.js\"",
-    "test:integration": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/mock-figma-run.js out/figma-script.js && node test/mock-figma-run.js out/figma-plugin/code.js && node test/preview.js out/figma-script.js examples/pricing-card.html out/preview.html --assert-fidelity 95 && node bin/html-to-figma.js test/fixtures/gradients.html -o out/gradients && node test/preview.js out/gradients/figma-script.js test/fixtures/gradients.html out/gradients/preview.html --assert-fidelity 99 && npm run test:e2e",
+    "test:integration": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/mock-figma-run.js out/figma-script.js && node test/mock-figma-run.js out/figma-plugin/code.js && node test/preview.js out/figma-script.js examples/pricing-card.html out/preview.html --assert-fidelity 95 --assert-component-fidelity 45 && node bin/html-to-figma.js test/fixtures/gradients.html -o out/gradients && node test/preview.js out/gradients/figma-script.js test/fixtures/gradients.html out/gradients/preview.html --assert-fidelity 99 --assert-component-fidelity 99 && npm run test:e2e",
     "preview": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/preview.js out/figma-script.js examples/pricing-card.html out/preview.html",
     "check": "node test/skill-eval/grade.js"
   },

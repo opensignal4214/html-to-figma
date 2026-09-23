@@ -11,13 +11,18 @@ import { pathToFileURL } from 'node:url';
 import { launchBrowser } from '../src/extract.js';
 import { sizeSvg, mainAxisPlan, crossAxisOffset, svgMatrix, paintSpaceToPixels, rotatedBounds } from './preview-util.js';
 import { createFigmaEmu } from './figma-emu.js';
+import { contentFidelity } from './pixel-diff.js';
 // pixel-diff.js holds the canonical, unit-tested diff spec; the harness runs an
 // identical loop inside the browser to avoid transferring full RGBA buffers.
 
 const argv = process.argv.slice(2);
 const flagIdx = argv.indexOf('--assert-fidelity');
 const assertFidelity = flagIdx >= 0 ? parseFloat(argv[flagIdx + 1]) : null;
-const positional = argv.filter((a, i) => !a.startsWith('--') && !(flagIdx >= 0 && i === flagIdx + 1));
+// Honest gate: EVERY component's content-weighted fidelity must meet this.
+const compIdx = argv.indexOf('--assert-component-fidelity');
+const assertComponent = compIdx >= 0 ? parseFloat(argv[compIdx + 1]) : null;
+const flagValues = new Set([flagIdx + 1, compIdx + 1].filter((i) => i > 0));
+const positional = argv.filter((a, i) => !a.startsWith('--') && !flagValues.has(i));
 const scriptPath = positional[0] || 'out/figma-script.js';
 const htmlPath = positional[1] || 'examples/pricing-card.html';
 const outPath = positional[2] || 'out/preview.html';
@@ -234,7 +239,9 @@ function renderNode(n) {
 // --------------------------------------------------------------------- main
 
 async function screenshotOriginal(file, width) {
-  const browser = await launchBrowser();
+  // Grayscale text AA, like Figma and like SVG-as-image rasterization; LCD
+  // subpixel fringes would otherwise read as color errors on every glyph.
+  const browser = await launchBrowser(['--disable-lcd-text']);
   try {
     const context = await browser.newContext({ viewport: { width, height: 900 }, deviceScaleFactor: 1 });
     const pg = await context.newPage();
@@ -268,7 +275,9 @@ async function computeFidelity(pngBuffer, svgString, w, h, regions) {
     const pngUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
     const svgUrl = `data:image/svg+xml;base64,${Buffer.from(svgString).toString('base64')}`;
     return await page.evaluate(
-      async ({ pngUrl, svgUrl, w, h, regions, tolerance }) => {
+      async ({ pngUrl, svgUrl, w, h, regions, tolerance, contentSrc }) => {
+        // The unit-tested contentFidelity(), injected verbatim.
+        const contentFidelity = new Function(`return (${contentSrc})`)();
         const load = (src) =>
           new Promise((res, rej) => {
             const im = new Image();
@@ -314,12 +323,13 @@ async function computeFidelity(pngBuffer, svgString, w, h, regions) {
           }
           return { diff, total, fidelity: total ? 1 - diff / total : 1 };
         };
+        const content = (r) => contentFidelity(da, db, w, h, { tolerance, region: r }).fidelity;
         return {
-          overall: diffRegion(0, 0, w, h),
-          perComponent: regions.map((r) => ({ name: r.name, ...diffRegion(r.x, r.y, r.w, r.h) })),
+          overall: { ...diffRegion(0, 0, w, h), content: content(null) },
+          perComponent: regions.map((r) => ({ name: r.name, ...diffRegion(r.x, r.y, r.w, r.h), content: content([r.x, r.y, r.w, r.h]) })),
         };
       },
-      { pngUrl, svgUrl, w, h, regions, tolerance: 16 },
+      { pngUrl, svgUrl, w, h, regions, tolerance: 16, contentSrc: contentFidelity.toString() },
     );
   } finally {
     await browser.close();
@@ -354,10 +364,11 @@ async function run() {
   const regions = componentRegions(root);
   const fidelity = await computeFidelity(png, svg, w, h, regions);
   const pct = (f) => `${(f * 100).toFixed(1)}%`;
-  console.log(`\nFidelity (browser vs simulated Figma): ${pct(fidelity.overall.fidelity)} overall`);
-  for (const c of fidelity.perComponent) console.log(`  ${pct(c.fidelity).padStart(6)}  ${c.name}`);
+  console.log(`\nFidelity (browser vs simulated Figma): ${pct(fidelity.overall.fidelity)} overall, ${pct(fidelity.overall.content)} content-weighted`);
+  console.log('  pixel  content  component');
+  for (const c of fidelity.perComponent) console.log(`  ${pct(c.fidelity).padStart(6)}  ${pct(c.content).padStart(6)}  ${c.name}`);
   const fidelityRows = fidelity.perComponent
-    .map((c) => `<tr><td>${esc(c.name)}</td><td style="text-align:right">${pct(c.fidelity)}</td></tr>`)
+    .map((c) => `<tr><td>${esc(c.name)}</td><td style="text-align:right">${pct(c.fidelity)}</td><td style="text-align:right;padding-left:12px">${pct(c.content)}</td></tr>`)
     .join('');
 
   const html = `<!DOCTYPE html>
@@ -378,7 +389,7 @@ async function run() {
 <p>Left: real browser render. Right: simulated Figma output (mock plugin API + simulated Auto Layout). If they match, the generated script is faithful.</p>
 <div class="pane" style="margin-bottom:16px">
   <h2>Fidelity — pixel match vs the browser render</h2>
-  <p style="font-size:22px;margin:4px 0;font-weight:700">${pct(fidelity.overall.fidelity)} <span style="font-size:13px;font-weight:400;color:#777">overall</span></p>
+  <p style="font-size:22px;margin:4px 0;font-weight:700">${pct(fidelity.overall.content)} <span style="font-size:13px;font-weight:400;color:#777">content-weighted (${pct(fidelity.overall.fidelity)} all pixels)</span></p>
   <table style="font-size:13px;border-collapse:collapse">${fidelityRows}</table>
 </div>
 <div class="cols">
@@ -406,6 +417,15 @@ async function run() {
       process.exit(1);
     }
     console.log(`\nFidelity ${got.toFixed(1)}% meets the required ${assertFidelity}%`);
+  }
+  if (assertComponent !== null) {
+    const scored = fidelity.perComponent.length ? fidelity.perComponent : [{ name: '(page)', content: fidelity.overall.content }];
+    const failing = scored.filter((c) => c.content * 100 < assertComponent);
+    if (failing.length) {
+      for (const c of failing) console.error(`Component "${c.name}" content fidelity ${pct(c.content)} is below ${assertComponent}%`);
+      process.exit(1);
+    }
+    console.log(`All ${scored.length} component(s) meet content fidelity ≥ ${assertComponent}%`);
   }
 }
 

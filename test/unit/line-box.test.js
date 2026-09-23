@@ -27,9 +27,18 @@ test('lineBoxRect: tighter line-height than glyphs does not shrink the box', () 
   assert.deepEqual(lineBoxRect(tight, 16, 1), tight);
 });
 
-test('lineBoxRect: multi-line keeps tight bounds (single-line only for now)', () => {
+test('lineBoxRect: multi-line expands to n line boxes (Figma starts line 1 at the node top)', () => {
+  // wrap.html: 4 lines at 22px; tight glyph bounds y=2, h=83 → per-line glyph
+  // height 83 - 3·22 = 17, half-leading (22 - 17) / 2 = 2.5
+  const box = lineBoxRect({ x: 0, y: 2, width: 117.39, height: 83 }, 22, 4);
+  assert.equal(box.y, -0.5);
+  assert.equal(box.height, 88);
+  assert.equal(box.width, 117.39);
+});
+
+test('lineBoxRect: multi-line whose spacing is not line-height (mixed inline content) stays tight', () => {
   const t = { x: 0, y: 0, width: 200, height: 60 };
-  assert.deepEqual(lineBoxRect(t, 25, 3), t);
+  assert.deepEqual(lineBoxRect(t, 25, 3), t); // implied glyph height 10 < half the line → not a plain run
 });
 
 test('lineBoxRect: exact fit is a no-op', () => {

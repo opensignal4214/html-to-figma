@@ -8,8 +8,8 @@ const CSS_MAP_PATH = path.join(__dirname, 'css-map.js');
 
 const FALLBACK_CHROMIUM_PATHS = ['/opt/pw-browsers/chromium', process.env.CHROME_PATH].filter(Boolean);
 
-export async function launchBrowser() {
-  const args = ['--allow-file-access-from-files'];
+export async function launchBrowser(extraArgs = []) {
+  const args = ['--allow-file-access-from-files', ...extraArgs];
   try {
     return await chromium.launch({ args });
   } catch (err) {

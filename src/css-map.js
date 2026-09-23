@@ -613,7 +613,14 @@ export function mapFlexLayout(cs) {
   };
   // Reverse directions lay children out back-to-front; the walker reverses the
   // flow children so Auto Layout order matches the visual order.
-  if (cs.flexDirection.endsWith('-reverse')) layout.reverse = true;
+  if (cs.flexDirection.endsWith('-reverse')) {
+    layout.reverse = true;
+    // main-start is now the far edge: flex-start/normal pack right (bottom),
+    // flex-end packs left (top). start/end follow the writing mode → unchanged.
+    const j = cs.justifyContent;
+    if (j === 'normal' || j === 'flex-start' || !(j in ALIGN_PRIMARY)) layout.primaryAlign = 'MAX';
+    else if (j === 'flex-end') layout.primaryAlign = 'MIN';
+  }
   return layout;
 }
 
@@ -712,18 +719,24 @@ export function mapBoxStyle(cs, rect) {
 }
 
 /**
- * Expand a single-line tight text rect (Range glyph bounds) to its CSS line
- * box, centered vertically. Multi-line rects and unknown/tighter line-heights
- * are returned unchanged — the tight bounds are already correct there, and
- * expanding multi-line accurately needs per-line boxes we don't model yet.
+ * Expand a tight text rect (Range glyph bounds) to its CSS line boxes. Figma
+ * lays text out in line boxes starting at the node top, so tight bounds make
+ * text drift by the half-leading. For n lines spaced exactly `lineHeightPx`
+ * apart, each line's glyph height is c = h − (n−1)·lh and the half-leading is
+ * (lh − c)/2. Unknown/tighter line-heights, and multi-line runs whose implied
+ * glyph height is implausible (< lh/2: mixed inline content, not a plain
+ * run), are returned unchanged.
  */
 export function lineBoxRect(tight, lineHeightPx, lineCount) {
   const out = { x: tight.x, y: tight.y, width: tight.width, height: tight.height };
-  if (!lineHeightPx || lineCount !== 1) return out;
-  const pad = (lineHeightPx - tight.height) / 2;
+  const n = lineCount || 1;
+  if (!lineHeightPx) return out;
+  const glyph = tight.height - (n - 1) * lineHeightPx;
+  if (n > 1 && glyph < lineHeightPx / 2) return out;
+  const pad = (lineHeightPx - glyph) / 2;
   if (pad <= 0) return out;
   out.y = round(tight.y - pad);
-  out.height = lineHeightPx;
+  out.height = round(n * lineHeightPx);
   return out;
 }
 

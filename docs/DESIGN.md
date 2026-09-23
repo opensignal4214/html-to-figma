@@ -143,7 +143,7 @@ only for off-center `object-fit: cover`; the builder turns it into a CROP
 
 ## Testing strategy
 
-Three layers, cheapest first — none require the Figma app:
+Four layers, cheapest first; none require the Figma app:
 
 1. **Unit** (`test/unit/*.test.js`, `node --test`): pin the pure functions in
    `src/css-map.js` (color/shadow/gradient parsing, flex→Auto-Layout mapping,
@@ -154,10 +154,23 @@ Three layers, cheapest first — none require the Figma app:
    rules (font must load before `characters`; `resize` rejects invalid sizes;
    limited font set exercises fallback chains) and asserts components/text were
    created.
-3. **Visual preview** (`test/preview.js`): recording mock + simulated Auto
-   Layout → SVG render → side-by-side + overlay compare page against the real
-   browser render. Approximates Figma's engine; final verification of a
-   component library still deserves one run in Figma (Scripter is fastest).
+3. **Visual preview** (`test/preview.js`): runs the script on the
+   spec-faithful emulator (`test/figma-emu.js`) plus a simulated Auto Layout,
+   renders nodes via their `relativeTransform` and paints in Figma's own paint
+   space, and compares against the real browser render. The gate is
+   `contentFidelity()`: content-weighted, AA-tolerant and per component, so
+   empty page area can't hide an error.
+4. **Spec conformance** (no Figma account): `npm run test:types` type-checks
+   the builder against the official `@figma/plugin-typings`, and
+   `test/unit/figma-enums.test.js` checks every emitted enum against them.
+   `test/unit/figma-oracle.test.js` decodes every emitted matrix with the
+   independent `@figma-plugin/helpers` decoders and compares it to CSS-spec
+   geometry. Independence rule: builder, oracle and renderer share no
+   transform code.
+
+What still needs real Figma (2.3): the text engine (shaping, line breaking),
+font availability, the exact Auto Layout engine, and effect and resampling
+algorithms.
 
 ### Workflow: plan-first, then TDD
 

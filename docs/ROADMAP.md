@@ -83,7 +83,10 @@ three-layer local test harness (unit / mock-API / visual preview).
   skill-eval agent: ~8px on a testimonial card). Extractor counts rendered
   lines via `range.getClientRects()`; multi-line and AUTO line-height keep
   tight bounds. Unit + e2e tested; pricing-card baseline unchanged
-  (line-height:normal there).
+  (line-height:normal there). Extended in 2.5 D to multi-line runs: n lines
+  spaced exactly by line-height expand to n·line-height starting one
+  half-leading above the first glyph row. Figma starts line 1 at the node
+  top, so tight bounds drifted every paragraph down.
 
 **Exit criteria:** an example page with overlapping z-indexed elements, a
 rotated card, native list bullets, and an off-center `cover` image round-trips
@@ -124,7 +127,7 @@ visually identical in the preview overlay.
   Figma's createNodeFromSvg + resize. Fixes viewport-sized SVGs in the
   simulated render. Unit-tested; wired into the preview renderer.
 
-- [~] **2.5 Spec-faithful verification without a Figma account** (M–L)
+- [x] **2.5 Spec-faithful verification without a Figma account** (M–L)
   Ground truth is Figma's own published semantics, never the builder's
   assumptions. Sources: official `@figma/plugin-typings`, the
   `@figma-plugin/helpers` decoders as an independent oracle, and the CSS specs.
@@ -156,8 +159,18 @@ visually identical in the preview overlay.
     The anti-circularity check: run through this renderer, the pre-2.5B builder
     scores 4.5–16.7% on radials, 50.9–73.2% on non-square linears and 55.6% on
     rotated leaves.
-  - [ ] D. Honest fidelity metric: content-weighted, per-component gate,
-    AA-tolerant.
+  - [x] D. Honest fidelity metric. `contentFidelity()` (test/pixel-diff.js)
+    scores only pixels where either render differs from the page background,
+    so empty area can't dilute errors. It box-filters to half resolution and
+    accepts a match within one cell in both directions, so it tolerates
+    sub-pixel/AA shifts but not misplacements of 3 px or more. The preview
+    injects the same unit-tested function into the browser.
+    `--assert-component-fidelity` gates every component: gradients ≥ 99%,
+    pricing ≥ 45% (limited by 3.7 fonts; tighten once fixed). The browser
+    screenshot now uses grayscale text AA (`--disable-lcd-text`), as Figma
+    does. What it exposed and fixed: `*-reverse` packing (0% → 97%) and
+    multi-line text line boxes (tight bounds drifted by the half-leading; now
+    n·line-height, 1.6). It also found 3.7 (rendered font).
 
 **Exit criteria:** `npm run preview` prints a fidelity % for the example and
 CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
@@ -200,6 +213,14 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   (baseline identical). **Deferred**: RTL Auto Layout order flipping (Figma's
   primary axis is always LTR, so it needs child reversal + primaryAlign flip and
   interacts with `*-reverse`) — tracked as a follow-up. Plan: docs/plans/3.6-rtl.md.
+- [ ] **3.7 Emit the *rendered* font, not the first-listed one** (M). Found by
+  the 2.5 D metric. Chrome renders the first *installed* family in the stack,
+  but the builder takes the first *listed* one. So `Inter, Arial, sans-serif`
+  on a machine without Inter renders in Arial but ships to Figma as Inter:
+  wrong widths and metrics. On the pricing Hero this costs about half the
+  content fidelity (52%). Resolve the actual family per text node (CDP
+  `CSS.getPlatformFontsForNode`) and carry it in the tree next to the authored
+  stack. Needs a plan doc; the schema change is additive.
 
 **Exit criteria:** a page using a Google font + a fake brand font reaches
 ≥99% fidelity score in `exact` mode and reports the fallback clearly.
@@ -258,7 +279,11 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
 - [x] **5.4 `row-reverse` / `column-reverse`** (S) — `mapFlexLayout` sets
   `reverse:true` for `*-reverse`; walker reverses flow children at extraction so
   Auto Layout order matches visual order. Unit + e2e; baseline unchanged.
-  (No Figma needed; verified via child order + x-positions.)
+  (No Figma needed; verified via child order + x-positions.) **Fixed in
+  2.5 D**: under `*-reverse`, main-start is the far edge, so
+  `flex-start`/`normal` now pack to `MAX` and `flex-end` to `MIN`. `start`
+  and `end` follow the writing mode and are unchanged. The old whole-page
+  metric scored the misplaced bar 99.3%; content-weighted it was 0%.
 - [ ] **5.5 Percentage-width children** (S) — `width: 100%` → STRETCH rather
   than a fixed px copy.
 - [ ] **5.6 CSS Grid → Auto Layout** (L) — single-axis grids map directly;
