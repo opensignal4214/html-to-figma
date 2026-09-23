@@ -9,7 +9,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { launchBrowser } from '../src/extract.js';
-import { sizeSvg, mainAxisPlan } from './preview-util.js';
+import { sizeSvg, mainAxisPlan, crossAxisOffset, svgMatrix, paintSpaceToPixels, rotatedBounds } from './preview-util.js';
+import { createFigmaEmu } from './figma-emu.js';
 // pixel-diff.js holds the canonical, unit-tested diff spec; the harness runs an
 // identical loop inside the browser to avoid transferring full RGBA buffers.
 
@@ -23,8 +24,16 @@ const outPath = positional[2] || 'out/preview.html';
 
 // ---------------------------------------------------------------- mock figma
 
-const images = {}; // imageHash -> data URL
-let hashCounter = 0;
+// Spec-faithful node model (test/figma-emu.js): relativeTransform is the
+// source of truth; x/y/rotation are its documented views.
+const emu = createFigmaEmu();
+const { figma, page } = emu;
+const images = new Proxy({}, {
+  get(_, hash) {
+    const bytes = emu.images[hash];
+    return bytes ? `data:${sniffMime(bytes)};base64,${Buffer.from(bytes).toString('base64')}` : undefined;
+  },
+});
 
 function sniffMime(bytes) {
   if (bytes[0] === 0x89 && bytes[1] === 0x50) return 'image/png';
@@ -33,79 +42,6 @@ function sniffMime(bytes) {
   if (bytes[8] === 0x57 && bytes[9] === 0x45) return 'image/webp';
   return 'image/png';
 }
-
-function makeNode(type) {
-  const node = {
-    type,
-    name: '',
-    x: 0, y: 0, width: 0, height: 0,
-    opacity: 1,
-    visible: true,
-    rotation: 0,
-    blendMode: 'NORMAL',
-    fills: [], strokes: [], effects: [], dashPattern: [],
-    strokeWeight: 1, strokeAlign: 'INSIDE',
-    strokeTopWeight: 0, strokeRightWeight: 0, strokeBottomWeight: 0, strokeLeftWeight: 0,
-    cornerRadius: 0,
-    topLeftRadius: 0, topRightRadius: 0, bottomRightRadius: 0, bottomLeftRadius: 0,
-    clipsContent: false,
-    layoutMode: 'NONE', layoutWrap: 'NO_WRAP', layoutPositioning: 'AUTO',
-    primaryAxisSizingMode: 'AUTO', counterAxisSizingMode: 'AUTO',
-    primaryAxisAlignItems: 'MIN', counterAxisAlignItems: 'MIN',
-    itemSpacing: 0, counterAxisSpacing: 0,
-    paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0,
-    children: [],
-    resize(w, h) {
-      if (!(w > 0) || !(h > 0)) throw new Error(`invalid resize(${w}, ${h})`);
-      node.width = w;
-      node.height = h;
-    },
-    appendChild(child) {
-      node.children.push(child);
-      child.parent = node;
-    },
-  };
-  if (type === 'TEXT') {
-    Object.assign(node, {
-      fontName: { family: 'Inter', style: 'Regular' },
-      characters: '',
-      fontSize: 12,
-      lineHeight: { unit: 'AUTO' },
-      letterSpacing: { value: 0, unit: 'PIXELS' },
-      textAlignHorizontal: 'LEFT',
-      textAlignVertical: 'TOP',
-      textDecoration: 'NONE',
-      textCase: 'ORIGINAL',
-      textAutoResize: 'NONE',
-      textTruncation: 'DISABLED',
-    });
-  }
-  return node;
-}
-
-const page = makeNode('PAGE');
-const figma = {
-  currentPage: page,
-  viewport: { center: { x: 0, y: 0 }, scrollAndZoomIntoView() {} },
-  createFrame: () => makeNode('FRAME'),
-  createComponent: () => makeNode('COMPONENT'),
-  createRectangle: () => makeNode('RECTANGLE'),
-  createText: () => makeNode('TEXT'),
-  createNodeFromSvg(svg) {
-    const node = makeNode('SVG_FRAME');
-    node.__svg = svg;
-    return node;
-  },
-  createImage(bytes) {
-    const hash = `h${hashCounter++}`;
-    images[hash] = `data:${sniffMime(bytes)};base64,${Buffer.from(bytes).toString('base64')}`;
-    return { hash };
-  },
-  async loadFontAsync() { /* accept everything so the preview shows the requested family */ },
-  notify(msg) { console.log('[figma.notify]', msg); },
-  closePlugin() {},
-};
-Object.defineProperty(page, 'selection', { set() {}, get() { return []; } });
 
 // ------------------------------------------------- Auto Layout simulation
 
@@ -121,7 +57,12 @@ function simulateLayout(n) {
     const padCrossStart = horizontal ? n.paddingTop : n.paddingLeft;
     const padCrossEnd = horizontal ? n.paddingBottom : n.paddingRight;
     const inner = mainSize - padMainStart - padMainEnd;
-    const plan = mainAxisPlan(n.primaryAxisAlignItems, inner, flow.map((k) => (horizontal ? k.width : k.height)), n.itemSpacing || 0);
+    // Auto Layout sizes/places children by their (rotated) bounds; the
+    // translation of an in-flow child is layout-owned (official typings).
+    const bounds = new Map(flow.map((k) => [k, rotatedBounds(k.relativeTransform, k.width, k.height)]));
+    const bw = (k) => bounds.get(k).width;
+    const bh = (k) => bounds.get(k).height;
+    const plan = mainAxisPlan(n.primaryAxisAlignItems, inner, flow.map((k) => (horizontal ? bw(k) : bh(k))), n.itemSpacing || 0);
     const gap = plan.gap;
     let cursor = padMainStart + plan.start;
     // Approximate first-line baseline distance from a child's top (real Figma
@@ -132,14 +73,17 @@ function simulateLayout(n) {
       ? Math.max(...flow.map(baselineOf), 0)
       : 0;
     for (const k of flow) {
-      const kMain = horizontal ? k.width : k.height;
-      const kCross = horizontal ? k.height : k.width;
-      let cross = padCrossStart;
-      if (n.counterAxisAlignItems === 'CENTER') cross = (crossSize - kCross) / 2;
-      else if (n.counterAxisAlignItems === 'MAX') cross = crossSize - padCrossEnd - kCross;
-      else if (n.counterAxisAlignItems === 'BASELINE' && horizontal) cross = padCrossStart + maxBaseline - baselineOf(k);
-      if (horizontal) { k.x = cursor; k.y = cross; }
-      else { k.y = cursor; k.x = cross; }
+      const kMain = horizontal ? bw(k) : bh(k);
+      const kCross = horizontal ? bh(k) : bw(k);
+      let cross = crossAxisOffset(n.counterAxisAlignItems, crossSize, padCrossStart, padCrossEnd, kCross);
+      if (n.counterAxisAlignItems === 'BASELINE' && horizontal) cross = padCrossStart + maxBaseline - baselineOf(k);
+      // Put the bounds' top-left on the slot (for unrotated nodes: x/y = slot).
+      const b = bounds.get(k);
+      const ox = b.minX - k.x;
+      const oy = b.minY - k.y;
+      const [sx, sy] = horizontal ? [cursor, cross] : [cross, cursor];
+      k.x = sx - ox;
+      k.y = sy - oy;
       cursor += kMain + gap;
     }
   }
@@ -154,27 +98,17 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const rgba = (c, opacity = 1) =>
   `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${((c.a ?? 1) * opacity).toFixed(3)})`;
 
-function gradientDef(id, fill) {
-  // First row of gradientTransform: t = m00*x + m01*y + m02 in normalized coords.
-  const [m00, m01, m02] = fill.gradientTransform[0];
-  const uu = m00 * m00 + m01 * m01 || 1;
-  const x1 = (-m02 * m00) / uu;
-  const y1 = (-m02 * m01) / uu;
-  const x2 = ((1 - m02) * m00) / uu;
-  const y2 = ((1 - m02) * m01) / uu;
+// Paints are drawn in Figma's own paint space and mapped to node pixels by
+// inv(T·diag(1/w, 1/h)) — linear t = gx, radial centered (½, ½) radius ½ —
+// so the render follows Figma's convention, not the builder's intent.
+function gradientDef(id, fill, w, h) {
   const stops = fill.gradientStops
     .map((s) => `<stop offset="${s.position}" stop-color="${rgba(s.color)}"/>`)
     .join('');
-  return `<linearGradient id="${id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">${stops}</linearGradient>`;
-}
-
-function radialGradientDef(id, fill) {
-  // Preview renders a centered radial (objectBoundingBox space); the Figma
-  // gradientTransform is best-effort and verified separately.
-  const stops = fill.gradientStops
-    .map((s) => `<stop offset="${s.position}" stop-color="${rgba(s.color)}"/>`)
-    .join('');
-  return `<radialGradient id="${id}" cx="0.5" cy="0.5" r="0.5">${stops}</radialGradient>`;
+  const tf = `gradientUnits="userSpaceOnUse" gradientTransform="${paintSpaceToPixels(fill.gradientTransform, w, h)}"`;
+  return fill.type === 'GRADIENT_RADIAL'
+    ? `<radialGradient id="${id}" cx="0.5" cy="0.5" r="0.5" ${tf}>${stops}</radialGradient>`
+    : `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0" ${tf}>${stops}</linearGradient>`;
 }
 
 function shadowFilterCss(n) {
@@ -196,14 +130,17 @@ function renderBox(n) {
       out += `<rect width="${n.width}" height="${n.height}" rx="${rx}" fill="${rgba(f.color, f.opacity ?? 1)}"${out ? '' : shadow}/>`;
     } else if (f.type === 'GRADIENT_LINEAR' || f.type === 'GRADIENT_RADIAL') {
       const id = `g${defId++}`;
-      defs.push(f.type === 'GRADIENT_RADIAL' ? radialGradientDef(id, f) : gradientDef(id, f));
+      defs.push(gradientDef(id, f, n.width, n.height));
       out += `<rect width="${n.width}" height="${n.height}" rx="${rx}" fill="url(#${id})"${out ? '' : shadow}/>`;
     } else if (f.type === 'IMAGE' && images[f.imageHash] && f.scaleMode === 'TILE') {
       // Tile at natural size — a foreignObject div lets the browser repeat it.
       out += `<foreignObject width="${n.width}" height="${n.height}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${n.width}px;height:${n.height}px;background:url(${images[f.imageHash]}) repeat;border-radius:${rx}px"></div></foreignObject>`;
     } else if (f.type === 'IMAGE' && images[f.imageHash]) {
-      let img = `<image width="${n.width}" height="${n.height}" href="${images[f.imageHash]}" preserveAspectRatio="${f.scaleMode === 'FIT' ? 'xMidYMid meet' : 'xMidYMid slice'}"/>`;
-      if (rx > 0) {
+      let img = f.scaleMode === 'CROP' && f.imageTransform
+        // CROP: the image fills Figma's unit image space, placed by imageTransform.
+        ? `<image width="1" height="1" preserveAspectRatio="none" transform="${paintSpaceToPixels(f.imageTransform, n.width, n.height)}" href="${images[f.imageHash]}"/>`
+        : `<image width="${n.width}" height="${n.height}" href="${images[f.imageHash]}" preserveAspectRatio="${f.scaleMode === 'FIT' ? 'xMidYMid meet' : 'xMidYMid slice'}"/>`;
+      if (rx > 0 || f.scaleMode === 'CROP') {
         const id = `c${defId++}`;
         defs.push(`<clipPath id="${id}"><rect width="${n.width}" height="${n.height}" rx="${rx}"/></clipPath>`);
         img = `<g clip-path="url(#${id})">${img}</g>`;
@@ -260,7 +197,7 @@ function renderText(n) {
     truncate +
     (textShadow ? `text-shadow:${textShadow};` : '');
   return (
-    `<foreignObject x="${n.x}" y="${n.y}" width="${Math.ceil(n.width) + 2}" height="${Math.ceil(n.height) + 2}">` +
+    `<foreignObject x="0" y="0" width="${Math.ceil(n.width) + 2}" height="${Math.ceil(n.height) + 2}">` +
     `<div xmlns="http://www.w3.org/1999/xhtml" style="${style}">${esc(n.characters)}</div></foreignObject>`
   );
 }
@@ -268,9 +205,8 @@ function renderText(n) {
 function renderNode(n) {
   if (n.visible === false) return '';
   const opacity = n.opacity !== 1 ? ` opacity="${n.opacity}"` : '';
-  // Figma rotation is CCW-positive about the node center; SVG rotate is
-  // CW-positive, so negate. Rotate about the node's own center.
-  const rot = n.rotation ? ` rotate(${-n.rotation} ${n.width / 2} ${n.height / 2})` : '';
+  // relativeTransform is the source of truth (no pivot/sign assumptions).
+  const tf = ` transform="${svgMatrix(n.relativeTransform)}"`;
   const styleParts = [];
   if (n.blendMode && n.blendMode !== 'NORMAL') styleParts.push(`mix-blend-mode:${n.blendMode.toLowerCase().replace(/_/g, '-')}`);
   const layerBlur = (n.effects || []).find((e) => e.type === 'LAYER_BLUR' && e.visible !== false);
@@ -279,11 +215,11 @@ function renderNode(n) {
   if (bgBlur) styleParts.push(`backdrop-filter:blur(${bgBlur.radius}px);-webkit-backdrop-filter:blur(${bgBlur.radius}px)`);
   const blend = styleParts.length ? ` style="${styleParts.join(';')}"` : '';
   if (n.type === 'TEXT') {
-    return opacity ? `<g${opacity}>${renderText(n)}</g>` : renderText(n);
+    return `<g${tf}${opacity}>${renderText(n)}</g>`;
   }
-  if (n.type === 'SVG_FRAME') {
-    const svg = n.__svg ? sizeSvg(n.__svg, n.width, n.height) : '';
-    return `<g transform="translate(${n.x},${n.y})${rot}"${opacity}${blend}>${svg}</g>`;
+  if (n.__svg !== undefined) {
+    const svg = sizeSvg(n.__svg, n.width, n.height);
+    return `<g${tf}${opacity}${blend}>${svg}</g>`;
   }
   let kids = (n.children || []).map(renderNode).join('');
   if (n.clipsContent && kids) {
@@ -292,7 +228,7 @@ function renderNode(n) {
     defs.push(`<clipPath id="${id}"><rect width="${n.width}" height="${n.height}" rx="${rx}"/></clipPath>`);
     kids = `<g clip-path="url(#${id})">${kids}</g>`;
   }
-  return `<g transform="translate(${n.x},${n.y})${rot}"${opacity}${blend}>${renderBox(n)}${kids}</g>`;
+  return `<g${tf}${opacity}${blend}>${renderBox(n)}${kids}</g>`;
 }
 
 // --------------------------------------------------------------------- main

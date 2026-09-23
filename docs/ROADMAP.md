@@ -145,8 +145,17 @@ visually identical in the preview overlay.
     correct and is locked. The spec-faithful node emulator
     (`test/figma-emu.js`) runs the real builder for these tests. Intentional
     baseline change: the Pro card's 135° gradient transform only.
-  - [ ] C. Emulator and renderer with `relativeTransform` as the source of
-    truth.
+  - [x] C. Spec-faithful emulator and renderer. The preview now runs on
+    `test/figma-emu.js`, where `relativeTransform` is the source of truth.
+    Nodes render as SVG `matrix()` with no pivot assumption. Gradients and
+    crops are drawn in Figma's own paint space and mapped to pixels by
+    inv(T·diag(1/w, 1/h)), so the render follows Figma's convention rather than
+    the builder's intent. Auto Layout places rotated children by their rotated
+    bounds and centers the cross axis within the padding. New gated fixture
+    `test/fixtures/gradients.html` (at least 99%) scores 100% on every swatch.
+    The anti-circularity check: run through this renderer, the pre-2.5B builder
+    scores 4.5–16.7% on radials, 50.9–73.2% on non-square linears and 55.6% on
+    rotated leaves.
   - [ ] D. Honest fidelity metric: content-weighted, per-component gate,
     AA-tolerant.
 

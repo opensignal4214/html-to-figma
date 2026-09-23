@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  /* Paint-geometry fixture (ROADMAP 2.5): non-square linear gradients at
+     arbitrary angles and corner keywords, radial shape/size/position variants,
+     and rotated leaves off-center. Each swatch is its own component so the
+     per-component fidelity gate isolates regressions. */
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #fff; }
+  .row { display: flex; gap: 16px; padding: 16px 16px 0; }
+  .sw { width: 208px; height: 112px; }
+  .tall { width: 96px; height: 200px; }
+  .l1 { background: linear-gradient(135deg, #111827 0%, #f59e0b 100%); }
+  .l2 { background: linear-gradient(to top right, #0ea5e9, #fde047); }
+  .l3 { background: linear-gradient(30deg, #7c3aed, #ffffff 60%, #16a34a); }
+  .l4 { background: linear-gradient(200deg, #ef4444, #1e3a8a); }
+  .r1 { background: radial-gradient(#f43f5e, #1e293b); }
+  .r2 { background: radial-gradient(circle at 25% 30%, #fbbf24, #7c2d12 70%); }
+  .r3 { background: radial-gradient(closest-side at 70% 50%, #22d3ee, #0f172a); }
+  .r4 { background: radial-gradient(circle farthest-side at right 20px bottom 10px, #a3e635, #14532d); }
+  .stage { position: relative; width: 208px; height: 200px; background: #f1f5f9; }
+  .rot { position: absolute; left: 30px; top: 60px; width: 140px; height: 60px; background: #2563eb; transform: rotate(33deg); }
+  .rot2 { position: absolute; left: 120px; top: 20px; width: 40px; height: 100px; background: #db2777; transform: rotate(-70deg); }
+</style></head><body>
+  <div class="row">
+    <div class="sw l1" data-figma-component="Linear / 135deg"></div>
+    <div class="sw l2" data-figma-component="Linear / to top right"></div>
+    <div class="sw l3" data-figma-component="Linear / 30deg 3-stop"></div>
+    <div class="tall l4" data-figma-component="Linear / 200deg tall"></div>
+  </div>
+  <div class="row">
+    <div class="sw r1" data-figma-component="Radial / default"></div>
+    <div class="sw r2" data-figma-component="Radial / circle at"></div>
+    <div class="sw r3" data-figma-component="Radial / closest-side"></div>
+    <div class="tall r4" data-figma-component="Radial / 4-value at"></div>
+  </div>
+  <div class="row">
+    <div class="stage" data-figma-component="Rotated leaves">
+      <div class="rot"></div><div class="rot2"></div>
+    </div>
+  </div>
+</body></html>

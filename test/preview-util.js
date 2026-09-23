@@ -48,3 +48,58 @@ export function mainAxisPlan(align, inner, sizes, spacing) {
   if (align === 'MAX') return { start: inner - total, gap: spacing };
   return { start: 0, gap: spacing };
 }
+
+// ---- Spec-faithful rendering of Figma matrices (ROADMAP 2.5 C). These follow
+// the official plugin-typings conventions and share no code with the builder.
+
+const fmt = (v) => {
+  const r = Math.round(v * 1e6) / 1e6;
+  return String(r === 0 ? 0 : r);
+};
+
+/** Figma relativeTransform [[a, c, e], [b, d, f]] → SVG `matrix(a b c d e f)`. */
+export function svgMatrix(rt) {
+  return `matrix(${[rt[0][0], rt[1][0], rt[0][1], rt[1][1], rt[0][2], rt[1][2]].map(fmt).join(' ')})`;
+}
+
+/**
+ * Figma samples a gradient/image paint at g = T·(x/w, y/h, 1) — linear t = gx,
+ * radial centered at (½, ½) with radius ½, image occupying the unit square.
+ * Returns the SVG matrix mapping paint space g → node pixels, i.e.
+ * inv(T·diag(1/w, 1/h)), so paints can be drawn in their own space.
+ */
+export function paintSpaceToPixels(T, w, h) {
+  const [[a, b, c], [d, e, f]] = T;
+  const det = a * e - b * d;
+  if (!det) return 'matrix(1 0 0 1 0 0)';
+  // inv of [[a b c][d e f][0 0 1]]
+  const ia = e / det;
+  const ib = -b / det;
+  const ic = (b * f - c * e) / det;
+  const id = -d / det;
+  const ie = a / det;
+  const iff = (c * d - a * f) / det;
+  // then scale normalized → pixels
+  return svgMatrix([[ia * w, ib * w, ic * w], [id * h, ie * h, iff * h]]);
+}
+
+/** Axis-aligned bounds (in parent space) of a w×h box under relativeTransform. */
+export function rotatedBounds(rt, w, h) {
+  const pts = [[0, 0], [w, 0], [w, h], [0, h]].map(([u, v]) => [
+    rt[0][0] * u + rt[0][1] * v + rt[0][2],
+    rt[1][0] * u + rt[1][1] * v + rt[1][2],
+  ]);
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  return { minX, minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
+}
+
+/** Counter-axis offset of a child: MIN/CENTER/MAX within the padded area. */
+export function crossAxisOffset(align, crossSize, padStart, padEnd, childCross) {
+  const inner = crossSize - padStart - padEnd;
+  if (align === 'CENTER') return padStart + (inner - childCross) / 2;
+  if (align === 'MAX') return padStart + inner - childCross;
+  return padStart;
+}
