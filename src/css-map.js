@@ -142,10 +142,33 @@ function gradientBody(value, name) {
 }
 
 // One `<length-percentage>` against a reference size; null if not a length.
+// Handles calc() sums of % and px terms, which Chromium emits when serializing
+// edge-offset positions (`right 10px` → `calc(100% - 10px)`).
 function lengthPct(tok, ref) {
   if (/^-?[\d.]+%$/.test(tok)) return (parseFloat(tok) / 100) * ref;
   if (/^-?[\d.]+(px)?$/.test(tok)) return parseFloat(tok);
-  return null;
+  const calc = /^calc\((.*)\)$/.exec(tok);
+  if (!calc) return null;
+  const terms = calc[1].replace(/\s+/g, '').match(/[+-]?[\d.]+(%|px)?/g);
+  if (!terms || terms.join('') !== calc[1].replace(/\s+/g, '')) return null;
+  return terms.reduce((sum, t) => sum + (t.endsWith('%') ? (parseFloat(t) / 100) * ref : parseFloat(t)), 0);
+}
+
+// Split on whitespace outside parentheses (keeps `calc(100% - 10px)` whole).
+function splitSpaces(str) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of str.trim()) {
+    if (ch === '(') depth++;
+    if (ch === ')') depth--;
+    if (/\s/.test(ch) && depth === 0) {
+      if (cur) out.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 
 // CSS <position> (1, 2, or 4 values) → center in px on a w×h box.
@@ -200,7 +223,7 @@ export function parseRadialGradient(bgImage, w = 1, h = 1) {
   let explicit = [];
   let center = [w / 2, h / 2];
   if (parts.length && !parseColor(parts[0])) {
-    const toks = parts[0].trim().split(/\s+/);
+    const toks = splitSpaces(parts[0]);
     const at = toks.indexOf('at');
     const pre = at >= 0 ? toks.slice(0, at) : toks;
     if (at >= 0) center = parsePosition(toks.slice(at + 1), w, h);

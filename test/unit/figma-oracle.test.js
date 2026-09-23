@@ -214,6 +214,10 @@ for (const [css, center, radius] of [
   ['60px 30px at 10px 20px', [10, 20], [60, 30]],
   ['closest-side at top', [160, 0], [160, 0]], // ellipse: min(160,160) × min(0,180) = 0, guarded
   ['circle farthest-side at right 10px bottom 20px', [310, 160], [310, 310]],
+  // Other serializations newer Chromium emits for the same position:
+  ['circle farthest-side at calc(100% - 10px) calc(100% - 20px)', [310, 160], [310, 310]],
+  ['circle farthest-side at calc(-10px + 100%) calc(-20px + 100%)', [310, 160], [310, 310]],
+  ['closest-side at calc(50% + 16px) 25%', [176, 45], [144, 45]],
 ]) {
   test(`radial: ${css} on 320×180 decodes (oracle) to the CSS ending shape`, () => {
     const [w, h] = [320, 180];
