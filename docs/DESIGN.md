@@ -133,7 +133,7 @@ only for off-center `object-fit: cover`; the builder turns it into a CROP
 | Decision | Rationale |
 |---|---|
 | Flexbox → Auto Layout; everything else → fixed frames at extracted rects | Only flexbox has a faithful Auto Layout equivalent. Fixed rects are *always* correct visually; Auto Layout is layered on top for editability. Children keep their extracted sizes (`FIXED` sizing) so the result matches the browser even if our alignment mapping is imperfect. |
-| `space-around`/`space-evenly` → `SPACE_BETWEEN` | Figma has no equivalent; positions still match because child sizes are fixed. Documented approximation. |
+| `space-around`/`space-evenly` → `SPACE_AROUND`/`SPACE_EVENLY` | Native Figma values; the plugin typings' diagrams match CSS flexbox semantics (verified by `test/unit/figma-enums.test.js`). |
 | `align-items: baseline` → `BASELINE` (horizontal only) | Figma supports baseline only on horizontal Auto Layout; vertical falls back to `MIN`. |
 | Text wrappers collapse into single TEXT nodes | An `<h1>` with plain text becomes one TextNode, not frame+text, unless it carries visual box styling (background/border/shadow/radius) — keeps layer trees shallow like a designer would build them. |
 | Fonts resolved through the whole CSS stack, then Inter | Each family in `font-family` is tried against Figma's fonts with the weight-derived style name (`700 italic` → "Bold Italic"), generic families map to Inter/Georgia/Roboto Mono. Guarantees text always renders. |

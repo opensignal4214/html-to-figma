@@ -120,6 +120,24 @@ visually identical in the preview overlay.
   Figma's createNodeFromSvg + resize. Fixes viewport-sized SVGs in the
   simulated render. Unit-tested; wired into the preview renderer.
 
+- [~] **2.5 Spec-faithful verification without a Figma account** (M–L)
+  Ground truth is Figma's own published semantics, never the builder's
+  assumptions. Sources: official `@figma/plugin-typings`, the
+  `@figma-plugin/helpers` decoders as an independent oracle, and the CSS specs.
+  Plan: docs/plans/2.5-spec-verification.md.
+  - [x] A. Type conformance: `npm run test:types` (`tsc --checkJs` of the
+    builder against the official typings, in CI) plus
+    `test/unit/figma-enums.test.js`, which checks every emitted enum against the
+    typings' unions. Caught `BlurEffect` missing `blurType` (Figma would throw)
+    and the outdated `space-around`/`space-evenly` → `SPACE_BETWEEN`
+    approximation (now native `SPACE_AROUND`/`SPACE_EVENLY`).
+  - [ ] B. Oracle tests + matrix fixes: rotation pivot, linear on non-square
+    boxes, radial size/shape/position; crop kept as a regression lock.
+  - [ ] C. Emulator and renderer with `relativeTransform` as the source of
+    truth.
+  - [ ] D. Honest fidelity metric: content-weighted, per-component gate,
+    AA-tolerant.
+
 **Exit criteria:** `npm run preview` prints a fidelity % for the example and
 CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
 
@@ -371,5 +389,3 @@ sheet's components doesn't break the page recreation.
 - **Metric-identical text for fonts Figma can't load** *in editable form* —
   the deterministic Inter fallback stays the editable default; `outline` mode
   (3.3) is the pixel-perfect escape hatch.
-- **`space-around`/`space-evenly` exact Auto Layout semantics** — Figma has no
-  equivalent; positions remain exact because extraction is geometry-based.

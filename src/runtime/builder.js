@@ -37,8 +37,31 @@ function __assetB64(o) {
   return null;
 }
 
+/** @returns {SolidPaint} */
 function __solid(c) {
   return { type: 'SOLID', color: { r: c.r, g: c.g, b: c.b }, opacity: c.a === undefined ? 1 : c.a };
+}
+
+// Every Figma API object is built by a JSDoc-typed constructor so `tsc --checkJs`
+// validates it against the official @figma/plugin-typings (test/types). Tree data
+// only feeds individual fields.
+
+/** @returns {DropShadowEffect | InnerShadowEffect} */
+function __shadowEffect(s) {
+  var color = { r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a };
+  var offset = { x: s.x || 0, y: s.y || 0 };
+  if (s.inset) {
+    return { type: 'INNER_SHADOW', color: color, offset: offset, radius: s.blur || 0, spread: s.spread || 0, visible: true, blendMode: 'NORMAL' };
+  }
+  return { type: 'DROP_SHADOW', color: color, offset: offset, radius: s.blur || 0, spread: s.spread || 0, visible: true, blendMode: 'NORMAL' };
+}
+
+/** CSS filter / backdrop-filter effect (see css-map parseFilters) → Figma Effect. @returns {Effect} */
+function __filterEffect(e) {
+  if (e.type === 'LAYER_BLUR' || e.type === 'BACKGROUND_BLUR') {
+    return { type: e.type === 'LAYER_BLUR' ? 'LAYER_BLUR' : 'BACKGROUND_BLUR', radius: e.radius || 0, visible: true, blurType: 'NORMAL' };
+  }
+  return __shadowEffect({ x: e.offset.x, y: e.offset.y, blur: e.radius, spread: 0, inset: false, color: e.color });
 }
 
 var __WEIGHT_NAMES = {
@@ -94,16 +117,13 @@ async function __resolveFont(stack, weight, italic, cache) {
   return fallback;
 }
 
+/** @param {FrameNode | ComponentNode | RectangleNode} node */
 function __applyBox(node, st) {
   if (st.radius) {
-    if ('topLeftRadius' in node) {
-      node.topLeftRadius = st.radius.tl || 0;
-      node.topRightRadius = st.radius.tr || 0;
-      node.bottomRightRadius = st.radius.br || 0;
-      node.bottomLeftRadius = st.radius.bl || 0;
-    } else if ('cornerRadius' in node) {
-      node.cornerRadius = st.radius.tl || 0;
-    }
+    node.topLeftRadius = st.radius.tl || 0;
+    node.topRightRadius = st.radius.tr || 0;
+    node.bottomRightRadius = st.radius.br || 0;
+    node.bottomLeftRadius = st.radius.bl || 0;
   }
   if (st.border && st.border.color && 'strokes' in node) {
     node.strokes = [__solid(st.border.color)];
@@ -130,26 +150,14 @@ function __applyBox(node, st) {
     }
   }
   if ('effects' in node) {
-    var effects = [];
-    if (st.shadows && st.shadows.length) {
-      effects = st.shadows.map(function (s) {
-        return {
-          type: s.inset ? 'INNER_SHADOW' : 'DROP_SHADOW',
-          color: { r: s.color.r, g: s.color.g, b: s.color.b, a: s.color.a },
-          offset: { x: s.x, y: s.y },
-          radius: s.blur || 0,
-          spread: s.spread || 0,
-          visible: true,
-          blendMode: 'NORMAL',
-        };
-      });
-    }
-    if (st.filterEffects && st.filterEffects.length) effects = effects.concat(st.filterEffects);
+    /** @type {Effect[]} */
+    var effects = (st.shadows || []).map(__shadowEffect).concat((st.filterEffects || []).map(__filterEffect));
     if (effects.length) node.effects = effects;
   }
   if ('clipsContent' in node) node.clipsContent = !!st.clip;
 }
 
+/** @returns {GradientPaint} */
 function __gradientPaint(g) {
   return {
     type: g.type === 'RADIAL' ? 'GRADIENT_RADIAL' : 'GRADIENT_LINEAR',
@@ -160,14 +168,19 @@ function __gradientPaint(g) {
   };
 }
 
+/** @returns {ImagePaint} */
 function __imagePaint(layer) {
   var img = figma.createImage(__base64ToBytes(__assetB64(layer)));
-  var fill = { type: 'IMAGE', imageHash: img.hash, scaleMode: layer.scaleMode || 'FILL' };
-  if (fill.scaleMode === 'TILE') fill.scalingFactor = layer.scalingFactor || 1;
-  return fill;
+  var scaleMode = layer.scaleMode || 'FILL';
+  if (scaleMode === 'TILE') {
+    return { type: 'IMAGE', imageHash: img.hash, scaleMode: 'TILE', scalingFactor: layer.scalingFactor || 1 };
+  }
+  return { type: 'IMAGE', imageHash: img.hash, scaleMode: scaleMode };
 }
 
+/** @returns {Paint[]} */
 function __frameFills(st) {
+  /** @type {Paint[]} */
   var fills = [];
   if (st.background) fills.push(__solid(st.background));
   // Multiple background layers: CSS order is top→bottom, Figma fills are
@@ -248,13 +261,13 @@ function __createImage(n) {
   if (n.image && __assetB64(n.image)) {
     try {
       var img = figma.createImage(__base64ToBytes(__assetB64(n.image)));
-      var fill = { type: 'IMAGE', imageHash: img.hash, scaleMode: n.image.scaleMode || 'FILL' };
       // CROP mode honors object-position: imageTransform maps container UV to
       // the visible normalized sub-rectangle of the image.
-      if (n.image.scaleMode === 'CROP' && n.image.crop) {
-        var c = n.image.crop;
-        fill.imageTransform = [[c.w, 0, c.x], [0, c.h, c.y]];
-      }
+      var c = n.image.crop;
+      /** @type {ImagePaint} */
+      var fill = n.image.scaleMode === 'CROP' && c
+        ? { type: 'IMAGE', imageHash: img.hash, scaleMode: 'CROP', imageTransform: [[c.w, 0, c.x], [0, c.h, c.y]] }
+        : { type: 'IMAGE', imageHash: img.hash, scaleMode: n.image.scaleMode || 'FILL' };
       rect.fills = [fill];
       applied = true;
     } catch (e) {
@@ -308,7 +321,9 @@ async function __createFrame(n, ctx) {
   return frame;
 }
 
+/** @param {FrameNode | ComponentNode | PageNode} parent */
 async function __createNode(n, parent, parentRect, ctx) {
+  /** @type {SceneNode | null} */
   var node = null;
   try {
     if (n.type === 'TEXT') node = await __createText(n, ctx);
@@ -350,6 +365,7 @@ async function main(tree, opts) {
   var ctx = { fonts: {}, count: 0, components: [] };
 
   var container = figma.currentPage;
+  /** @type {SceneNode | null} */
   var root = null;
   try {
     if (tree.type === 'TEXT') root = await __createText(tree, ctx);

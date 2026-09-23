@@ -208,9 +208,9 @@ test('mapFlexLayout: justify/align keywords map to Figma axis alignment', () => 
   assert.equal(l.counterAlign, 'CENTER');
 });
 
-test('mapFlexLayout: space-around/evenly approximate to SPACE_BETWEEN (documented)', () => {
-  assert.equal(mapFlexLayout({ ...flexBase, justifyContent: 'space-around' }).primaryAlign, 'SPACE_BETWEEN');
-  assert.equal(mapFlexLayout({ ...flexBase, justifyContent: 'space-evenly' }).primaryAlign, 'SPACE_BETWEEN');
+test('mapFlexLayout: space-around/evenly map to native Figma SPACE_AROUND/SPACE_EVENLY', () => {
+  assert.equal(mapFlexLayout({ ...flexBase, justifyContent: 'space-around' }).primaryAlign, 'SPACE_AROUND');
+  assert.equal(mapFlexLayout({ ...flexBase, justifyContent: 'space-evenly' }).primaryAlign, 'SPACE_EVENLY');
 });
 
 test('mapFlexLayout: baseline only valid on horizontal axis', () => {

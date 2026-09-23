@@ -9,7 +9,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { launchBrowser } from '../src/extract.js';
-import { sizeSvg } from './preview-util.js';
+import { sizeSvg, mainAxisPlan } from './preview-util.js';
 // pixel-diff.js holds the canonical, unit-tested diff spec; the harness runs an
 // identical loop inside the browser to avoid transferring full RGBA buffers.
 
@@ -121,16 +121,9 @@ function simulateLayout(n) {
     const padCrossStart = horizontal ? n.paddingTop : n.paddingLeft;
     const padCrossEnd = horizontal ? n.paddingBottom : n.paddingRight;
     const inner = mainSize - padMainStart - padMainEnd;
-    const sum = flow.reduce((a, k) => a + (horizontal ? k.width : k.height), 0);
-    let gap = n.itemSpacing || 0;
-    let cursor = padMainStart;
-    if (n.primaryAxisAlignItems === 'SPACE_BETWEEN' && flow.length > 1) {
-      gap = (inner - sum) / (flow.length - 1);
-    } else {
-      const total = sum + gap * Math.max(0, flow.length - 1);
-      if (n.primaryAxisAlignItems === 'CENTER') cursor += (inner - total) / 2;
-      else if (n.primaryAxisAlignItems === 'MAX') cursor += inner - total;
-    }
+    const plan = mainAxisPlan(n.primaryAxisAlignItems, inner, flow.map((k) => (horizontal ? k.width : k.height)), n.itemSpacing || 0);
+    const gap = plan.gap;
+    let cursor = padMainStart + plan.start;
     // Approximate first-line baseline distance from a child's top (real Figma
     // computes this exactly for BASELINE alignment; the preview estimates it).
     const baselineOf = (k) =>

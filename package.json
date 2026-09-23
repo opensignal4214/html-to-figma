@@ -9,7 +9,8 @@
   "main": "src/index.js",
   "scripts": {
     "example": "node bin/html-to-figma.js examples/pricing-card.html -o out",
-    "test": "npm run test:unit && npm run test:integration",
+    "test": "npm run test:types && npm run test:unit && npm run test:integration",
+    "test:types": "tsc -p test/types/tsconfig.json",
     "test:unit": "node --test \"test/unit/*.test.js\"",
     "test:e2e": "node --test \"test/integration/*.test.js\"",
     "test:integration": "node bin/html-to-figma.js examples/pricing-card.html -o out && node test/mock-figma-run.js out/figma-script.js && node test/mock-figma-run.js out/figma-plugin/code.js && node test/preview.js out/figma-script.js examples/pricing-card.html out/preview.html --assert-fidelity 95 && npm run test:e2e",

@@ -25,3 +25,26 @@ export function sizeSvg(markup, w, h) {
   if (viewBox) inject += ` viewBox="${viewBox}"`;
   return markup.replace(open[0], `<svg${attrs}${inject}>`);
 }
+
+/**
+ * Primary-axis placement for a simulated Auto Layout frame: where the first
+ * in-flow child starts (relative to the padding edge) and the spacing between
+ * children. Distributed modes follow CSS flexbox semantics, which Figma's
+ * SPACE_BETWEEN / SPACE_AROUND / SPACE_EVENLY diagrams (plugin typings) match;
+ * with fewer than two children SPACE_BETWEEN packs to the start and the other
+ * two center, as in CSS.
+ */
+export function mainAxisPlan(align, inner, sizes, spacing) {
+  const n = sizes.length;
+  const sum = sizes.reduce((a, s) => a + s, 0);
+  const free = inner - sum;
+  if (align === 'SPACE_BETWEEN' && n > 1) return { start: 0, gap: free / (n - 1) };
+  if (align === 'SPACE_AROUND' && n > 1) return { start: free / n / 2, gap: free / n };
+  if (align === 'SPACE_EVENLY' && n > 1) return { start: free / (n + 1), gap: free / (n + 1) };
+  const total = sum + spacing * Math.max(0, n - 1);
+  if (align === 'CENTER' || ((align === 'SPACE_AROUND' || align === 'SPACE_EVENLY') && n === 1)) {
+    return { start: (inner - total) / 2, gap: spacing };
+  }
+  if (align === 'MAX') return { start: inner - total, gap: spacing };
+  return { start: 0, gap: spacing };
+}

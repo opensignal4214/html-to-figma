@@ -19,7 +19,7 @@ const ALIGN_PRIMARY = {
   'flex-start': 'MIN', start: 'MIN', left: 'MIN', normal: 'MIN',
   center: 'CENTER',
   'flex-end': 'MAX', end: 'MAX', right: 'MAX',
-  'space-between': 'SPACE_BETWEEN', 'space-around': 'SPACE_BETWEEN', 'space-evenly': 'SPACE_BETWEEN',
+  'space-between': 'SPACE_BETWEEN', 'space-around': 'SPACE_AROUND', 'space-evenly': 'SPACE_EVENLY',
 };
 
 const ALIGN_COUNTER = {
