@@ -47,8 +47,11 @@ three-layer local test harness (unit / mock-API / visual preview).
       local-space math not done).
     - **Skew / non-uniform scale**: decomposed but not applied — needs the
       rasterize fallback (2.2).
-    - **Figma rotation pivot/sign**: builder sets `node.rotation` about center;
-      confirm against live Figma in the 2.3 export loop.
+    - ~~Figma rotation pivot/sign~~: resolved in 2.5 B. Figma's `rotation`
+      pivots about the top-left (official typings), so the builder now emits a
+      center-pivot `relativeTransform`, which is oracle-tested. Residual: in an
+      auto-layout flow Figma lays out rotated children by their rotated bounds,
+      whereas CSS keeps the unrotated slot.
 - [x] **1.3 List markers** (S)
   `markerString()` maps `list-style-type` + ordinal to the marker glyph/number
   (disc/circle/square, decimal[-leading-zero], lower/upper alpha & roman);
@@ -69,9 +72,10 @@ three-layer local test harness (unit / mock-API / visual preview).
   normalized crop rect: contain→FIT, centered cover→FILL (unchanged),
   off-center cover→CROP with an `imageTransform` from the visible sub-rect.
   Extractor captures intrinsic size + object-position; builder emits the
-  CROP fill. Unit + e2e tested (generated PNG fixture). NOTE: the
-  crop-rect→imageTransform matrix convention is not yet verified against live
-  Figma — flag for the Phase 2.3 real-Figma export loop. `background-position`
+  CROP fill. Unit + e2e tested (generated PNG fixture). The
+  crop-rect→imageTransform convention decodes correctly under the independent
+  `@figma-plugin/helpers` oracle (2.5 B regression lock); live-Figma
+  confirmation remains part of 2.3. `background-position`
   on background images still center-crops (follow-up).
 - [x] **1.6 Text line-box capture** (S)
   `lineBoxRect()` expands a single-line tight rect to its CSS line box,
@@ -131,8 +135,16 @@ visually identical in the preview overlay.
     typings' unions. Caught `BlurEffect` missing `blurType` (Figma would throw)
     and the outdated `space-around`/`space-evenly` → `SPACE_BETWEEN`
     approximation (now native `SPACE_AROUND`/`SPACE_EVENLY`).
-  - [ ] B. Oracle tests + matrix fixes: rotation pivot, linear on non-square
-    boxes, radial size/shape/position; crop kept as a regression lock.
+  - [x] B. Oracle tests + matrix fixes (`test/unit/figma-oracle.test.js`,
+    87 cases). Each emitted matrix is decoded with the official semantics or
+    the `@figma-plugin/helpers` decoders and compared to CSS-spec pixel
+    geometry. Fixed three problems: rotation now pivots about the center via
+    `relativeTransform`; linear gradients are built in pixel space, so they are
+    correct on non-square boxes and corner keywords follow the aspect ratio;
+    radial gradients now honor shape, size and position. Crop was already
+    correct and is locked. The spec-faithful node emulator
+    (`test/figma-emu.js`) runs the real builder for these tests. Intentional
+    baseline change: the Pro card's 135° gradient transform only.
   - [ ] C. Emulator and renderer with `relativeTransform` as the source of
     truth.
   - [ ] D. Honest fidelity metric: content-weighted, per-component gate,
@@ -193,13 +205,13 @@ CI enforces it; a form-controls example ships at ~100% via rasterize fallback.
   Unit + e2e tested; gradient-over-image fixture renders 99.7% in the preview.
   Plan: `docs/plans/4.1-multiple-backgrounds.md`.
 - [~] **4.2 Radial gradients done; conic deferred** (M) —
-  `parseRadialGradient()` emits `{ type: 'RADIAL', stops, transform }` (shared
-  stop parser with linear; descriptor skipped); builder emits GRADIENT_RADIAL;
-  preview renders an SVG radialGradient (verified 98.9% on a red→blue fixture).
-  Linear gradients keep no `type` key so the baseline is unchanged. The radial
-  `gradientTransform` is a centered best-effort default — confirm against live
-  Figma in 2.3. **Conic → GRADIENT_ANGULAR deferred** (rarer; angular transform
-  murkier). Radial size/position beyond centered-fill is a follow-up.
+  `parseRadialGradient(bg, w, h)` resolves the full descriptor per CSS Images 3
+  (circle/ellipse; closest/farthest side/corner; explicit sizes; 1-, 2- and
+  4-value `at` positions) to a pixel center and radii, and builds the
+  `gradientTransform` from them. It is oracle-verified (2.5 B) across shapes,
+  sizes, positions and aspect ratios; the earlier centered default was wrong
+  (radius 1.0 vs CSS ≈0.707). Builder emits GRADIENT_RADIAL. Linear gradients
+  keep no `type` key. **Conic → GRADIENT_ANGULAR deferred** (rarer).
 - [ ] **4.3 Pseudo-elements `::before`/`::after`** (M) —
   `getComputedStyle(el, '::before')` with non-`none` content → synthesized
   child nodes (decorative shapes, icons, quotes are everywhere).

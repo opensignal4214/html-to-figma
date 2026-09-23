@@ -60,24 +60,27 @@ Flexbox maps 1:1 to Figma Auto Layout; almost nothing else does.
   gap: …`. This is what makes the Figma output restructurable.
 - Avoid CSS Grid, floats, and table layout: they convert pixel-accurate but
   frozen (no Auto Layout), which defeats the purpose for components.
-- Avoid `transform` (rotate/scale/skew) and overlapping siblings via
-  `z-index` — neither is mapped yet; output order/geometry will be wrong.
+- `transform: rotate()` is fine on **leaf** elements (images, icons,
+  childless boxes). Avoid rotating elements that have children, and avoid
+  skew/scale transforms; those degrade to a flattened raster.
   `position: absolute` inside a flex parent is fine (maps to an
   absolute-positioned Auto Layout child) — use it for badges pinned to
   corners.
 
 ## Visual styles
 
-Safe (map 1:1): solid colors, `linear-gradient`, multiple/inset
-`box-shadow`, `border` (uniform width), `border-radius` including `%`,
-`opacity`, `overflow: hidden`.
+Safe (map 1:1): solid colors, `linear-gradient` (any angle or corner),
+`radial-gradient` (shape, size keyword or explicit size, and `at` position),
+multiple background layers, tiled `background-repeat` images, multiple/inset
+`box-shadow`, `border` (per-side widths OK), `border-radius` including `%`,
+`opacity`, `overflow: hidden`, `mix-blend-mode`, `filter: blur()` /
+`drop-shadow()` and `backdrop-filter: blur()`.
 
-Avoid (not mapped — will silently disappear or degrade):
-radial/conic gradients, multiple background layers, `filter` /
-`backdrop-filter`, `::before`/`::after` content, `background-repeat`
-patterns, `mix-blend-mode`, per-side borders of different widths. When a
-design needs a decorative shape, make it a real element or an inline SVG
-instead of a pseudo-element.
+Avoid (not mapped, so it will silently disappear or degrade):
+`conic-gradient`, other `filter` functions (grayscale, brightness and so on
+become a flattened raster), `::before`/`::after` content, and per-side border
+*colors*. When a design needs a decorative shape, make it a real element or an
+inline SVG instead of a pseudo-element.
 
 ## Text
 

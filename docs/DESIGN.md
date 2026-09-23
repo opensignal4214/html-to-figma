@@ -80,7 +80,7 @@ parent-relative at creation time. All colors are `{ r, g, b, a }` in 0..1.
 | `name` | string | layer name (`tag#id.class` or text snippet) |
 | `rect` | `{x, y, width, height}` | absolute rendered bounding box |
 | `abs` | boolean | CSS `position: absolute/fixed/sticky` — becomes `layoutPositioning: 'ABSOLUTE'` inside Auto Layout parents |
-| `rotation` | number? | Figma rotation degrees (CCW+) for rotated **leaf** nodes; `rect` is then the untransformed box. Absent when unrotated |
+| `rotation` | number? | Figma rotation degrees (CCW+) for rotated **leaf** nodes; `rect` is then the untransformed box. Absent when unrotated. Figma's `rotation` pivots about the top-left, so the builder emits a `relativeTransform` rotating about the center (oracle-tested); auto-layout flow children get `rotation` only |
 | `style` | object | box styling, see below |
 
 ### `style`
@@ -88,7 +88,7 @@ parent-relative at creation time. All colors are `{ r, g, b, a }` in 0..1.
 | Field | Type | Source → target |
 |---|---|---|
 | `background` | color | `background-color` → SOLID fill |
-| `gradient` | `{ stops: [{color, position}], transform: [[m00,m01,m02],[m10,m11,m12]] }` | first `linear-gradient()` → GRADIENT_LINEAR fill (transform maps normalized box coords to gradient `t`) |
+| `gradient` | `{ type?: 'RADIAL', stops: [{color, position}], transform: [[m00,m01,m02],[m10,m11,m12]] }` | first `linear-gradient()` → GRADIENT_LINEAR, or `radial-gradient()` → GRADIENT_RADIAL. `transform` is Figma's `gradientTransform`, built in pixel space from the CSS gradient line or ending shape for this box's aspect ratio, and verified against the independent `@figma-plugin/helpers` decoders (`test/unit/figma-oracle.test.js`) |
 | `backgroundImage` | `{ base64, scaleMode }` | single `background-image: url()` → IMAGE fill |
 | `bgLayers` | `[{ kind:'gradient', gradient } \| { kind:'image', base64, scaleMode }]` | multiple background layers (CSS top→bottom); builder stacks them reversed above `background`. Present only when >1 layer |
 | `border` | `{ width, color, dashed }` | uniform stroke, INSIDE-aligned (CSS borders are inside the border-box) |
@@ -188,8 +188,8 @@ unit-testable.
 
 ## Known limitations / future work
 
-- CSS Grid, `::before`/`::after`, CSS filters, radial/conic gradients,
-  multiple background layers, `border` with mixed side widths.
+- CSS Grid, `::before`/`::after`, non-blur CSS filters (rasterized), conic
+  gradients, per-side border colors.
 - Auto Layout `stretch`/`layoutGrow` are not emitted (children are FIXED-size);
   resizing a generated component won't reflow like the original CSS yet.
 - Text is one style run per node; nested inline styling becomes sibling nodes.

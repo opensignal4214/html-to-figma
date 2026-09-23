@@ -321,6 +321,23 @@ async function __createFrame(n, ctx) {
   return frame;
 }
 
+/**
+ * relativeTransform for a w×h box whose unrotated top-left is (x, y), rotated
+ * by `deg` (Figma: CCW-positive, rotation = atan2(-m10, m00)) about its center.
+ * @returns {Transform}
+ */
+function __rotatedAboutCenter(deg, x, y, w, h) {
+  var t = deg * Math.PI / 180;
+  var c = Math.cos(t);
+  var s = Math.sin(t);
+  var cx = x + w / 2;
+  var cy = y + h / 2;
+  return [
+    [c, s, cx - (c * w / 2 + s * h / 2)],
+    [-s, c, cy - (-s * w / 2 + c * h / 2)],
+  ];
+}
+
 /** @param {FrameNode | ComponentNode | PageNode} parent */
 async function __createNode(n, parent, parentRect, ctx) {
   /** @type {SceneNode | null} */
@@ -351,11 +368,21 @@ async function __createNode(n, parent, parentRect, ctx) {
   if (n.style && n.style.blendMode && 'blendMode' in node) {
     try { node.blendMode = n.style.blendMode; } catch (e) { /* unsupported */ }
   }
-  // Leaf rotation: n.rect is the untransformed box, so x/y put the center in
-  // the right place; Figma's rotation setter turns the node about its center.
-  // (Pivot/sign to be confirmed against live Figma — ROADMAP 1.2 / 2.3.)
+  // Leaf rotation. n.rect is the untransformed box and CSS rotates about its
+  // center, but Figma's `rotation` pivots about the node's TOP-LEFT (official
+  // typings). So free-positioned nodes get a full relativeTransform that
+  // rotates about the center: local (w/2, h/2) must land on the CSS center.
+  // Auto-layout flow children: the layout engine owns translation, so only the
+  // rotation is kept (Figma lays them out by their rotated bounds, whereas CSS
+  // transforms don't affect flow — a known residual gap, ROADMAP 2.5).
   if (n.rotation && 'rotation' in node) {
-    try { node.rotation = n.rotation; } catch (e) { /* unsupported node */ }
+    try {
+      if (parentAuto && !n.abs) {
+        node.rotation = n.rotation;
+      } else {
+        node.relativeTransform = __rotatedAboutCenter(n.rotation, n.rect.x - parentRect.x, n.rect.y - parentRect.y, n.rect.width, n.rect.height);
+      }
+    } catch (e) { /* unsupported node */ }
   }
   return node;
 }

@@ -14,6 +14,12 @@ const round = (v) => {
   const r = Math.round(v * 100) / 100;
   return r === 0 ? 0 : r; // normalize -0
 };
+// Gradient matrices are in normalized space and amplified by the box size, so
+// they need finer precision than pixel values (2 dp ≈ 1px error on 300px).
+const round4 = (v) => {
+  const r = Math.round(v * 10000) / 10000;
+  return r === 0 ? 0 : r;
+};
 
 const ALIGN_PRIMARY = {
   'flex-start': 'MIN', start: 'MIN', left: 'MIN', normal: 'MIN',
@@ -135,39 +141,124 @@ function gradientBody(value, name) {
   return body;
 }
 
+// One `<length-percentage>` against a reference size; null if not a length.
+function lengthPct(tok, ref) {
+  if (/^-?[\d.]+%$/.test(tok)) return (parseFloat(tok) / 100) * ref;
+  if (/^-?[\d.]+(px)?$/.test(tok)) return parseFloat(tok);
+  return null;
+}
+
+// CSS <position> (1, 2, or 4 values) → center in px on a w×h box.
+function parsePosition(tokens, w, h) {
+  const KW_X = { left: 0, center: 0.5, right: 1 };
+  const KW_Y = { top: 0, center: 0.5, bottom: 1 };
+  let x = 0.5 * w;
+  let y = 0.5 * h;
+  if (tokens.length === 4) {
+    // e.g. `right 10px bottom 20%` — edge keyword + offset from that edge
+    for (let k = 0; k < 4; k += 2) {
+      const kw = tokens[k];
+      if (kw === 'left' || kw === 'right') {
+        const off = lengthPct(tokens[k + 1], w) ?? 0;
+        x = kw === 'left' ? off : w - off;
+      } else {
+        const off = lengthPct(tokens[k + 1], h) ?? 0;
+        y = kw === 'top' ? off : h - off;
+      }
+    }
+    return [x, y];
+  }
+  let [a, b] = tokens;
+  // A lone vertical keyword or a swapped keyword pair (`top left`) → reorder.
+  if (a in KW_Y && !(a in KW_X)) [a, b] = [b ?? 'center', a];
+  else if (b in KW_X && !(b in KW_Y)) [a, b] = [b, a];
+  if (a !== undefined) x = a in KW_X ? KW_X[a] * w : lengthPct(a, w) ?? x;
+  if (b !== undefined) y = b in KW_Y ? KW_Y[b] * h : lengthPct(b, h) ?? y;
+  return [x, y];
+}
+
 /**
- * First radial-gradient() → Figma { type: 'RADIAL', stops, transform } or null.
- * The shape/size/position descriptor is skipped (non-color) and stops parsed
- * from the rest. NOTE: the radial `transform` is a centered best-effort default
- * pending verification against live Figma (Phase 2.3).
+ * First radial-gradient() → Figma { type: 'RADIAL', stops, transform } or null,
+ * for a w×h box (defaults to the unit square).
+ *
+ * The descriptor (`[shape] [size] [at position]`) is resolved per CSS Images 3
+ * to a pixel center (cx, cy) and radii (rx, ry): default ellipse
+ * farthest-corner at center. Figma's radial runs from gradient-space center
+ * (½, ½) to (1, ½) / (½, 1), so T maps box-normalized (u, v) to
+ * (½ + (u·w − cx)/(2·rx), ½ + (v·h − cy)/(2·ry)). Verified by the independent
+ * oracle in test/unit/figma-oracle.test.js.
  */
-export function parseRadialGradient(bgImage) {
+export function parseRadialGradient(bgImage, w = 1, h = 1) {
   const body = gradientBody(bgImage, 'radial-gradient');
   if (body === null) return null;
-  const stops = parseColorStops(splitTopLevel(body));
+  const parts = splitTopLevel(body);
+  const stops = parseColorStops(parts);
   if (!stops) return null;
-  // Centered radial that fills the box (center 0.5,0.5, radius 0.5).
-  return { type: 'RADIAL', stops, transform: [[0.5, 0, 0.25], [0, 0.5, 0.25]] };
+
+  let shape = null;
+  let size = 'farthest-corner';
+  let explicit = [];
+  let center = [w / 2, h / 2];
+  if (parts.length && !parseColor(parts[0])) {
+    const toks = parts[0].trim().split(/\s+/);
+    const at = toks.indexOf('at');
+    const pre = at >= 0 ? toks.slice(0, at) : toks;
+    if (at >= 0) center = parsePosition(toks.slice(at + 1), w, h);
+    for (const t of pre) {
+      if (t === 'circle' || t === 'ellipse') shape = t;
+      else if (/^(closest|farthest)-(side|corner)$/.test(t)) size = t;
+      else explicit.push(t);
+    }
+  }
+  const [cx, cy] = center;
+  const dxs = [cx, w - cx].map(Math.abs);
+  const dys = [cy, h - cy].map(Math.abs);
+  if (!shape) shape = explicit.length === 1 ? 'circle' : 'ellipse';
+
+  let rx;
+  let ry;
+  if (explicit.length) {
+    rx = lengthPct(explicit[0], w) ?? w / 2;
+    ry = shape === 'circle' ? rx : lengthPct(explicit[1] ?? explicit[0], h) ?? h / 2;
+  } else if (shape === 'circle') {
+    const corner = dxs.flatMap((a) => dys.map((b) => Math.hypot(a, b)));
+    rx = ry = {
+      'closest-side': Math.min(...dxs, ...dys),
+      'farthest-side': Math.max(...dxs, ...dys),
+      'closest-corner': Math.min(...corner),
+      'farthest-corner': Math.max(...corner),
+    }[size];
+  } else {
+    const pick = size.startsWith('closest') ? Math.min : Math.max;
+    // Corner sizes keep the side-based aspect ratio, scaled to pass through it.
+    const k = size.endsWith('corner') ? Math.SQRT2 : 1;
+    rx = pick(...dxs) * k;
+    ry = pick(...dys) * k;
+  }
+  rx = Math.max(rx, 1e-3 * w);
+  ry = Math.max(ry, 1e-3 * h);
+  const transform = [
+    [round4(w / (2 * rx)), 0, round4(0.5 - cx / (2 * rx))],
+    [0, round4(h / (2 * ry)), round4(0.5 - cy / (2 * ry))],
+  ];
+  return { type: 'RADIAL', stops, transform };
 }
 
 /**
  * First linear-gradient() in a background-image value → Figma gradient
- * { stops: [{color, position}], transform } or null. The transform's first row
- * maps normalized box coords (x, y, 1) to the gradient position t.
+ * { stops: [{color, position}], transform } or null, for a w×h box (defaults
+ * to the unit square).
+ *
+ * Figma samples a gradient at t = gx of T·(u, v, 1), where (u, v) are
+ * normalized box coords, and places the handles at inv(T)·(0, ½) / (1, ½).
+ * So the matrix is built in PIXEL space from the CSS gradient line (CSS Images
+ * 3: length |w·sinθ| + |h·cosθ| through the box center): row 0 is exactly the
+ * CSS t functional, row 1 puts the gradient centerline at gy = ½. Verified by
+ * the independent oracle in test/unit/figma-oracle.test.js.
  */
-export function parseLinearGradient(bgImage) {
-  const start = String(bgImage).indexOf('linear-gradient(');
-  if (start === -1) return null;
-  let i = start + 'linear-gradient('.length;
-  let depth = 1;
-  let body = '';
-  while (i < bgImage.length && depth > 0) {
-    const ch = bgImage[i];
-    if (ch === '(') depth++;
-    if (ch === ')') depth--;
-    if (depth > 0) body += ch;
-    i++;
-  }
+export function parseLinearGradient(bgImage, w = 1, h = 1) {
+  const body = gradientBody(bgImage, 'linear-gradient');
+  if (body === null) return null;
   const parts = splitTopLevel(body);
   if (!parts.length) return null;
 
@@ -182,15 +273,16 @@ export function parseLinearGradient(bgImage) {
     else angleDeg = v;
     stopParts = parts.slice(1);
   } else if (first.startsWith('to ')) {
-    const dirs = { top: 0, right: 90, bottom: 180, left: 270 };
     const words = first.slice(3).trim().split(/\s+/);
-    if (words.length === 1) angleDeg = dirs[words[0]] ?? 180;
-    else {
-      // corner: average of the two side angles (approximation)
-      const a1 = dirs[words[0]] ?? 0;
-      const a2 = dirs[words[1]] ?? 0;
-      const diff = ((a2 - a1 + 540) % 360) - 180;
-      angleDeg = (a1 + diff / 2 + 360) % 360;
+    const vert = words.find((d) => d === 'top' || d === 'bottom');
+    const horiz = words.find((d) => d === 'left' || d === 'right');
+    if (vert && horiz) {
+      // Corner: the line is perpendicular to the diagonal joining the two
+      // neighbouring corners, so the angle depends on the box's aspect ratio.
+      const a = (Math.atan2(h, w) * 180) / Math.PI; // `to top right`
+      angleDeg = { 'top right': a, 'bottom right': 180 - a, 'bottom left': 180 + a, 'top left': 360 - a }[`${vert} ${horiz}`];
+    } else {
+      angleDeg = { top: 0, right: 90, bottom: 180, left: 270 }[vert || horiz] ?? 180;
     }
     stopParts = parts.slice(1);
   }
@@ -198,19 +290,21 @@ export function parseLinearGradient(bgImage) {
   const stops = parseColorStops(stopParts);
   if (!stops) return null;
 
-  // CSS angle: 0deg = to top, 90deg = to right. Compute the gradient line on
-  // the unit box, then build the inverse transform whose first row is t(x, y).
+  // CSS angle: 0deg = to top, 90deg = to right (screen y goes down).
   const theta = (angleDeg * Math.PI) / 180;
   const dx = Math.sin(theta);
-  const dy = -Math.cos(theta); // screen y goes down
-  const len = Math.abs(dx) + Math.abs(dy) || 1; // CSS gradient-line length on unit box
-  const ax = 0.5 - (dx * len) / 2;
-  const ay = 0.5 - (dy * len) / 2;
-  const ux = dx / len;
-  const uy = dy / len;
+  const dy = -Math.cos(theta);
+  const len = Math.abs(w * dx) + Math.abs(h * dy) || 1;
+  const cx = w / 2;
+  const cy = h / 2;
+  const sx = cx - (dx * len) / 2;
+  const sy = cy - (dy * len) / 2;
+  // Perpendicular (centerline offset) axis, same pixel scale as the line.
+  const nx = -dy;
+  const ny = dx;
   const transform = [
-    [round(ux), round(uy), round(-(ax * ux + ay * uy))],
-    [round(-uy), round(ux), round(-(ax * -uy + ay * ux))],
+    [round4((dx * w) / len), round4((dy * h) / len), round4(-(sx * dx + sy * dy) / len)],
+    [round4((nx * w) / len), round4((ny * h) / len), round4(0.5 - (cx * nx + cy * ny) / len)],
   ];
   return { stops, transform };
 }
@@ -534,6 +628,9 @@ function layerScaleMode(sizeStr, repeatStr) {
 /** Computed-style-like object + rect → tree `style` (box visuals). */
 export function mapBoxStyle(cs, rect) {
   const st = {};
+  // Gradient geometry depends on the box's aspect ratio (unit square if unknown).
+  const bw = (rect && rect.width) || 1;
+  const bh = (rect && rect.height) || 1;
   const bg = parseColor(cs.backgroundColor);
   if (bg) st.background = bg;
   if (cs.backgroundImage && cs.backgroundImage !== 'none') {
@@ -545,7 +642,7 @@ export function mapBoxStyle(cs, rect) {
       const repeats = splitTopLevel(cs.backgroundRepeat || 'repeat');
       const parsed = [];
       for (let i = 0; i < layers.length; i++) {
-        const grad = parseLinearGradient(layers[i]) || parseRadialGradient(layers[i]);
+        const grad = parseLinearGradient(layers[i], bw, bh) || parseRadialGradient(layers[i], bw, bh);
         if (grad) {
           parsed.push({ kind: 'gradient', gradient: grad });
           continue;
@@ -557,7 +654,7 @@ export function mapBoxStyle(cs, rect) {
       }
       if (parsed.length) st.bgLayers = parsed;
     } else {
-      const grad = parseLinearGradient(cs.backgroundImage) || parseRadialGradient(cs.backgroundImage);
+      const grad = parseLinearGradient(cs.backgroundImage, bw, bh) || parseRadialGradient(cs.backgroundImage, bw, bh);
       if (grad) st.gradient = grad;
       else {
         const url = matchCssUrl(cs.backgroundImage);
